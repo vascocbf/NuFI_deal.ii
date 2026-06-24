@@ -6,11 +6,13 @@
 #include <string>
 #include <vector>
 #include "nufi/nufi_solver.h"
+#include "nufi/poisson_problem.h"
+#include "nufi/fields.h"
 
 
 void save_f( const NuFISolver &solver,
     unsigned int n,
-                                    const double *E_coeffs,
+                                    const PoissonProblem<1> &poisson,
                                     unsigned int Nx_out,
                                     unsigned int Nv_out,
                                     const std::string &filename)
@@ -38,7 +40,7 @@ void save_f( const NuFISolver &solver,
       {
           double v = vmin + (j + 0.5)*dv;
 
-          double val = solver.eval_f(n, x, v, E_coeffs);
+          double val = solver.eval_f(n, x, v, poisson);
 
           file << val;
 
@@ -54,7 +56,7 @@ void save_f( const NuFISolver &solver,
 
 void save_rho(const NuFISolver &solver,
     unsigned int n,
-                                    const double *E_coeffs,
+                                    const PoissonProblem<1> &poisson,
                                     unsigned int Nx_out,
                                     const std::string &filename)
 {
@@ -69,15 +71,15 @@ void save_rho(const NuFISolver &solver,
 
   for (unsigned int i = 0; i < Nx_out; ++i, xmin += dx)
   {
-      double val = solver.eval_rho(n, xmin, E_coeffs);
+      double val = solver.eval_rho(n, xmin, poisson);
       file << val;
       file << "\n";
   }
   file.close();
 }
 
-void save_Efield(unsigned int n,
-                                    const double *E_coeffs,
+void save_Efield([[maybe_unused]]unsigned int n,
+                                    const PoissonProblem<1> &poisson,
                                     unsigned int Nx_out,
                                     const std::string &filename)
 {
@@ -88,17 +90,13 @@ void save_Efield(unsigned int n,
   double dx = (xmax - xmin) / Nx_out;
 
   // select from E_coeffs
-  const size_t stride_x = 1;
-  const size_t stride_t = stride_x*(Parameters::SPLINE_NX + Parameters::SPLINE_ORDER - 1);
-  const double *c;
-  c  = E_coeffs + n*stride_t;
 
   file << Nx_out << "\n";
   file << xmin << " " << xmax << "\n";
 
   for (unsigned int i = 0; i < Nx_out; ++i, xmin += dx)
   {
-      double val = -eval<1>(xmin, c);
+      double val = -eval(xmin, poisson);
       file << val;
       file << "\n";
   }

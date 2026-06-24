@@ -24,31 +24,24 @@ using namespace dealii;
 double NuFISolver::eval_ftilda(unsigned int n,
                                       double x,
                                       double u,
-                                      const double *E_coeffs) const
+                                      const PoissonProblem<1> &poisson) const
 {
   if ( n == 0 ) return f0(x,u);
   
-  const size_t order = Parameters::SPLINE_ORDER;
-  const size_t stride_x = 1;
-  const size_t stride_t = stride_x*(Nx + order - 1);
-
   double Ex;
-  const double *c;
 
   // We omit the initial half-step.
 
   while ( --n )
   {
       x  = x - Parameters::DT *u;
-      c  = E_coeffs + n*stride_t;
-      Ex = -eval<1>(x, c);
+      Ex = -eval(x, poisson);
       u  = u + Parameters::DT *Ex;
   }
 
   // The final half-step.
   x -= Parameters::DT*u;
-  c  = E_coeffs + n*stride_t;
-  Ex = -eval<1>(x, c);
+  Ex = -eval(x, poisson);
   u += 0.5*Parameters::DT*Ex;
 
   return f0(x,u);
@@ -57,34 +50,26 @@ double NuFISolver::eval_ftilda(unsigned int n,
 double NuFISolver::eval_f(unsigned int n,
                                       double x,
                                       double u,
-                                      const double *E_coeffs) const
+                                      const PoissonProblem<1> &poisson) const
 {
   if ( n == 0 ) return f0(x,u);
   
-  const size_t order = Parameters::SPLINE_ORDER;
-  const size_t stride_x = 1;
-  const size_t stride_t = stride_x*(Nx + order - 1);
-
   double Ex;
-  const double *c;
 
   // Initial half-step.
-  c  = E_coeffs + n*stride_t;
-  Ex = -eval<1>(x, c);
+  Ex = -eval(x, poisson);
   u += 0.5*Parameters::DT * Ex;
 
   while ( --n )
   {
       x  = x - Parameters::DT *u;
-      c  = E_coeffs + n*stride_t;
-      Ex = -eval<1>(x, c);
+      Ex = -eval(x, poisson);
       u  = u + Parameters::DT *Ex;
   }
 
   // The final half-step.
   x -= Parameters::DT*u;
-  c  = E_coeffs + n*stride_t;
-  Ex = -eval<1>(x, c);
+  Ex = -eval(x, poisson);
   u += 0.5*Parameters::DT*Ex;
 
   return f0(x,u);
@@ -92,7 +77,7 @@ double NuFISolver::eval_f(unsigned int n,
 
 double NuFISolver::eval_rho(const unsigned int n,
                           const double x,
-                          const double *E_coeffs,
+                          const PoissonProblem<1> &poisson,
                           const unsigned int Nv) const
 {
   const double dv = (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
@@ -102,7 +87,7 @@ double NuFISolver::eval_rho(const unsigned int n,
 
 #pragma omp parallel for reduction (+ : integral)
   for (unsigned int i = 0; i < Nv; ++i)
-    integral += eval_ftilda(n, x, v_min + i * dv, E_coeffs);
+    integral += eval_ftilda(n, x, v_min + i * dv, poisson);
   
   return 1.0 - integral*dv;
 }
@@ -114,9 +99,6 @@ void NuFISolver::run()
   using std::abs;
   using std::max;
 
-  const size_t stride_t = Nx + order - 1;
-
-  std::unique_ptr<double[]> coeffs { new double[ Nt*stride_t ] {} };
   std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*Nx)), std::free };
 
   std::vector<double> int_E_squared;
@@ -138,13 +120,13 @@ void NuFISolver::run()
 
       // compute rho
 
-      double dx = Parameters::SPLINE_DX;
+      double dx = Parameters::CALC_DX;
       
       #pragma omp parallel for
     	for(size_t i = 0; i<Nx; i++)
     	{
         double x = Parameters::X_DOMAIN_LEFT + i*dx;
-        double ith_rho = eval_rho(it, x, coeffs.get(),Parameters::NV); 
+        double ith_rho = eval_rho(it, x, poisson, Parameters::NV); 
 
         AssertThrow(std::isfinite(ith_rho), ExcMessage("NaN detected in rho"));
     		rho.get()[i] =  ith_rho;
@@ -165,15 +147,12 @@ void NuFISolver::run()
 
 
       // interpolate and save current field
-      double* current_coeffs = coeffs.get() + it*stride_t;
-      interpolate<double, Parameters::SPLINE_ORDER>(current_coeffs, sampled_potential.data());
-
 
       std::vector<double> E_x(Nx,0.0) ;
       #pragma omp parallel for
       for(size_t ix=0; ix<Nx; ++ix)
       {
-        E_x[ix] = -eval<1>(Parameters::X_DOMAIN_LEFT+ix*dx, current_coeffs);
+        E_x[ix] = -eval(Parameters::X_DOMAIN_LEFT+ix*dx, poisson);
       }
 
       double timer_elapsed = timer.elapsed();
@@ -183,12 +162,12 @@ void NuFISolver::run()
       if (it % Parameters::PLOT_FREQUENCY == 0)
       {
         std::cout << "Saving results...   ";
-        save_f(*this, it, coeffs.get(), Parameters::SPLINE_NX, Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
-        save_rho(*this, it, coeffs.get(), Parameters::SPLINE_NX, "results/rho_" + std::to_string(it) + ".dat");
+        save_f(*this, it, poisson, Parameters::PLOT_NX, Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
+        save_rho(*this, it, poisson, Parameters::PLOT_NX, "results/rho_" + std::to_string(it) + ".dat");
         // save_Efield(it, coeffs.get(), 128, "results/field_" + std::to_string(it) + ".dat");
         save_space_vector(E_x, "field", it);
 
-        double int_val = 0.5 * integral_space_vector_squared(current_coeffs);
+        double int_val = 0.5 * integral_space_vector_squared(poisson);
         int_E_squared.push_back(int_val);  
         save_space_vector(int_E_squared, "electricint", it);
         std::cout << "Time since start = "<< total_time<<"\n\n";

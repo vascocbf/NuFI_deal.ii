@@ -142,30 +142,6 @@ nufi_poisson/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/nufi_poisson.dir/build.make CMakeFiles/nufi_poisson.dir/build
 .PHONY : nufi_poisson/fast
 
-src/blas.o: src/blas.cc.o
-.PHONY : src/blas.o
-
-# target to build an object file
-src/blas.cc.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/nufi_lib.dir/build.make CMakeFiles/nufi_lib.dir/src/blas.cc.o
-.PHONY : src/blas.cc.o
-
-src/blas.i: src/blas.cc.i
-.PHONY : src/blas.i
-
-# target to preprocess a source file
-src/blas.cc.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/nufi_lib.dir/build.make CMakeFiles/nufi_lib.dir/src/blas.cc.i
-.PHONY : src/blas.cc.i
-
-src/blas.s: src/blas.cc.s
-.PHONY : src/blas.s
-
-# target to generate assembly for a file
-src/blas.cc.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/nufi_lib.dir/build.make CMakeFiles/nufi_lib.dir/src/blas.cc.s
-.PHONY : src/blas.cc.s
-
 src/main.o: src/main.cc.o
 .PHONY : src/main.o
 
@@ -248,9 +224,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... nufi_lib"
 	@echo "... nufi_poisson"
-	@echo "... src/blas.o"
-	@echo "... src/blas.i"
-	@echo "... src/blas.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"

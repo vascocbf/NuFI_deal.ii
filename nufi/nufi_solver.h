@@ -20,15 +20,15 @@ public:
   NuFISolver();
 
   void run();
-  double eval_rho(unsigned int n, double x, const double *E_coeffs, unsigned int Nv = Parameters::NV) const;
-  double eval_ftilda(unsigned int n, double x, double u, const double *E_coeffs) const;
-  double eval_f(unsigned int n, double x, double u, const double *E_coeffs) const;
+  double eval_rho(unsigned int n, double x, const PoissonProblem<1> &poisson, unsigned int Nv = Parameters::NV) const;
+  double eval_ftilda(unsigned int n, double x, double u, const PoissonProblem<1> &poisson) const;
+  double eval_f(unsigned int n, double x, double u, const PoissonProblem<1> &poisson) const;
 
 private:
 
 
   unsigned int Nt = std::floor(Parameters::TMAX/Parameters::DT);
-  unsigned int Nx = Parameters::SPLINE_NX;
+  unsigned int Nx = Parameters::CALC_NX;
 
   double Lx = Parameters::LX;
 
