@@ -6,4 +6,5 @@ This simulation of the Vlasov-Poisson system in 1x1v dimensions uses
 
 --- 
 Todo:
-- Correct spline interpolator/evaluation for discontinuity
+- fix eval and saving fields.
+    - something with periodicity or eval range in x
