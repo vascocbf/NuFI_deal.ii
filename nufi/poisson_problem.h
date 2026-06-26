@@ -12,6 +12,7 @@
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/utilities.h>
 
+#include <deal.II/fe/mapping_q.h>
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/full_matrix.h>
@@ -61,16 +62,12 @@ public:
 
   const Vector<double> &get_solution() const { return solution; }
   const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
+  const MappingQ<dim> &get_mapping() const { return mapping; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
                                             unsigned int Nx);
   std::vector<double> sample_electric_potential(double x_min, double x_max,
                                                 unsigned int Nx);
-
-  double evaluate_potential(const Point<dim> &p) const
-{
-  return fe_field_function->value(p);
-}
 
 private:
   void create_mesh();
@@ -94,7 +91,7 @@ private:
 
   MappingQ<dim> mapping;
 
-  std::unique_ptr<Functions::FEFieldFunction<dim>> fe_field_function;
+  // std::unique_ptr<Functions::FEFieldFunction<dim>> fe_field_function;
 };
 
 // Utilities
@@ -177,8 +174,8 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
 // template <int dim> std::vector<double> eval_solution_on_points(
 //         const std::vector<Vector<double>> &solutions,
 //         const unsigned int n,
-//         const std::vector<Point<dim>> &points, // need to be in [x_min, x_max]. I think....
-//         const std::vector<unsigned int> &cell_indices,
+//         const std::vector<Point<dim>> &points, // need to be in [x_min,
+//         x_max]. I think.... const std::vector<unsigned int> &cell_indices,
 //         const DoFHandler<dim> &dof_handler,
 //         const MappingQ<dim> &mapping)
 // {
@@ -219,7 +216,8 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
 //         for (unsigned int id : point_ids)
 //             cell_points.push_back(points[id]);
 //
-//         std::vector<types::global_dof_index> indices(dof_handler.get_fe().n_dofs_per_cell());
+//         std::vector<types::global_dof_index>
+//         indices(dof_handler.get_fe().n_dofs_per_cell());
 //         cell->get_dof_indices(indices);
 //
 //         for (unsigned int i=0;i<indices.size();++i)
@@ -240,13 +238,8 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
 template <int dim>
 double eval_point(const Mapping<dim> &mapping,
                   const DoFHandler<dim> &dof_handler,
-                  const Vector<double> &solution,
-                  const Point<dim> &point)
-{
-    return VectorTools::point_value<dim>(mapping,
-                                         dof_handler,
-                                         solution,
-                                         point);
+                  const Vector<double> &solution, const Point<dim> &point) {
+  return VectorTools::point_value<dim>(mapping, dof_handler, solution, point);
 }
 
 // dealii Poisson
@@ -288,7 +281,7 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
       gauge_dof = i;
       break;
     }
-
+  }
 
   Assert(gauge_dof != numbers::invalid_dof_index,
          ExcMessage("No unconstrained DoF found for gauge fixing."));
@@ -307,11 +300,9 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   solution.reinit(dof_handler.n_dofs());
   system_rhs.reinit(dof_handler.n_dofs());
 
-  fe_field_function =
-  std::make_unique<Functions::FEFieldFunction<dim>>(
-    dof_handler, solution, mapping);
-  }
-
+  // fe_field_function =
+  // std::make_unique<Functions::FEFieldFunction<dim>>(
+  //   dof_handler, solution, mapping);
 }
 /* (Mine)
 template <int dim>
@@ -393,6 +384,8 @@ void PoissonProblem<dim>::assemble_system()
 // Paul's, mine's above
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
+  Assert(system_matrix.m() == dof_handler.n_dofs(),
+         ExcMessage("Matrix not initialized correctly"));
   system_matrix = 0;
   system_rhs = 0;
 
@@ -446,11 +439,6 @@ template <int dim> void PoissonProblem<dim>::solve() {
   // solver.solve(system_matrix, solution, system_rhs, preconditioner);
   solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
   constraints.distribute(solution);
-
-
-  fe_field_function =
-  std::make_unique<Functions::FEFieldFunction<dim>>(
-    dof_handler, solution, mapping);
 }
 
 template <int dim> void PoissonProblem<dim>::initialize() {
