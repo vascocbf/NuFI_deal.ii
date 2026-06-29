@@ -33,12 +33,12 @@
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/numerics/data_out.h>
-#include <deal.II/numerics/fe_field_function.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <deal.II/numerics/vector_tools_evaluate.h>
 #include <deal.II/numerics/vector_tools_interpolate.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -58,11 +58,11 @@ public:
   void solve_step();
   void run();
 
-  void set_rhs_function(std::unique_ptr<Function<dim>> rhs_function);
+  void set_rhs_function(std::function<double(const Point<dim> &)> f);
 
   const Vector<double> &get_solution() const { return solution; }
-  const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
   const MappingQ<dim> &get_mapping() const { return mapping; }
+  const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
                                             unsigned int Nx);
@@ -87,18 +87,17 @@ private:
   Vector<double> solution; // phi
   Vector<double> system_rhs;
 
-  std::unique_ptr<const Function<dim>> rhs_function;
+  std::function<double(const Point<dim> &)> rhs_function;
 
   MappingQ<dim> mapping;
-
-  // std::unique_ptr<Functions::FEFieldFunction<dim>> fe_field_function;
 };
 
 // Utilities
 
 template <int dim>
-void PoissonProblem<dim>::set_rhs_function(std::unique_ptr<Function<dim>> rhs) {
-  rhs_function = std::move(rhs);
+void PoissonProblem<dim>::set_rhs_function(
+    std::function<double(const Point<dim> &)> f) {
+  rhs_function = std::move(f);
 }
 
 template <int dim>
@@ -170,71 +169,6 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
   return values;
 }
 
-// // by GPT to re-re-re-check
-// template <int dim> std::vector<double> eval_solution_on_points(
-//         const std::vector<Vector<double>> &solutions,
-//         const unsigned int n,
-//         const std::vector<Point<dim>> &points, // need to be in [x_min,
-//         x_max]. I think.... const std::vector<unsigned int> &cell_indices,
-//         const DoFHandler<dim> &dof_handler,
-//         const MappingQ<dim> &mapping)
-// {
-//     AssertIndexRange(n, solutions.size());
-//     Assert(points.size() == cell_indices.size(),
-//            ExcMessage("points and cell_indices must have same size"));
-//
-//     const Vector<double> &solution = solutions[n];
-//
-//     std::vector<double> result(points.size());
-//
-//     // Group points by cell (required for FEPointEvaluation efficiency)
-//     std::map<unsigned int, std::vector<unsigned int>> cell_to_point_ids;
-//
-//     for (unsigned int i = 0; i < points.size(); ++i)
-//         cell_to_point_ids[cell_indices[i]].push_back(i);
-//
-//     FEPointEvaluation<1, dim> evaluator(mapping,
-//                                         dof_handler.get_fe(),
-//                                         update_values);
-//
-//     std::vector<Point<dim>> cell_points;
-//     Vector<double> local_dofs(dof_handler.get_fe().dofs_per_cell);
-//
-//     for (const auto &entry : cell_to_point_ids)
-//     {
-//         const unsigned int cell_id = entry.first;
-//         const auto &point_ids = entry.second;
-//
-//         // these two lines bellow assume some order not sure how or why
-//         auto cell = dof_handler.begin_active();
-//         std::advance(cell, cell_id);
-//
-//         // extract points belonging to this cell
-//         cell_points.clear();
-//         cell_points.reserve(point_ids.size());
-//
-//         for (unsigned int id : point_ids)
-//             cell_points.push_back(points[id]);
-//
-//         std::vector<types::global_dof_index>
-//         indices(dof_handler.get_fe().n_dofs_per_cell());
-//         cell->get_dof_indices(indices);
-//
-//         for (unsigned int i=0;i<indices.size();++i)
-//           local_dofs[i] = solution[indices[i]];
-//
-//         // initialize evaluator on this cell
-//         evaluator.reinit(cell, cell_points);
-//
-//         evaluator.evaluate(local_dofs, EvaluationFlags::values);
-//
-//         for (unsigned int k = 0; k < point_ids.size(); ++k)
-//             result[point_ids[k]] = evaluator.get_value(k);
-//     }
-//
-//     return result;
-// }
-
 template <int dim>
 double eval_point(const Mapping<dim> &mapping,
                   const DoFHandler<dim> &dof_handler,
@@ -299,90 +233,9 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
 
   solution.reinit(dof_handler.n_dofs());
   system_rhs.reinit(dof_handler.n_dofs());
-
-  // fe_field_function =
-  // std::make_unique<Functions::FEFieldFunction<dim>>(
-  //   dof_handler, solution, mapping);
 }
-/* (Mine)
-template <int dim>
-void PoissonProblem<dim>::assemble_system()
-{
 
-  system_matrix = 0;
-  system_rhs = 0;
-
-  QGauss<dim>  quadrature_formula(fe.degree + 1);
-  FEValues<dim> fe_values(fe, quadrature_formula,
-                          update_values |
-                          update_gradients |
-                          update_quadrature_points |
-                          update_JxW_values);
-
-  const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
-
-  FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-  Vector<double>     cell_rhs(dofs_per_cell);
-  std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-  Assert(rhs_function != nullptr, ExcMessage("RHS function not set"));
-
-  for (const auto &cell : dof_handler.active_cell_iterators())
-  {
-    fe_values.reinit(cell);
-
-    cell_matrix = 0;
-    cell_rhs    = 0;
-
-    for (const auto q : fe_values.quadrature_point_indices())
-    {
-      const double rho = rhs_function->value(fe_values.quadrature_point(q));
-
-      for (const unsigned int i : fe_values.dof_indices())
-        for (const unsigned int j : fe_values.dof_indices())
-          cell_matrix(i, j) +=
-            (fe_values.shape_grad(i, q) * // grad phi_i(x_q)
-             fe_values.shape_grad(j, q) * // grad phi_j(x_q)
-             fe_values.JxW(q));           // dx
-
-      for (const unsigned int i : fe_values.dof_indices())
-        cell_rhs(i) += (fe_values.shape_value(i, q) * // phi_i(x_q)
-                        rho *                         // f(x_q)
-                        fe_values.JxW(q));            // dx
-
-
-    }
-
-    cell->get_dof_indices(local_dof_indices);
-    constraints.distribute_local_to_global(cell_matrix,
-                                           cell_rhs,
-                                           local_dof_indices,
-                                           system_matrix,
-                                           system_rhs);
-    for (const unsigned int i : fe_values.dof_indices())
-      for (const unsigned int j : fe_values.dof_indices())
-        system_matrix.add(local_dof_indices[i],
-                          local_dof_indices[j],
-                          cell_matrix(i, j));
-
-    for (const unsigned int i : fe_values.dof_indices())
-      system_rhs(local_dof_indices[i]) += cell_rhs(i);
-
-  }
-  std::map<types::global_dof_index, double> boundary_values;
-  // VectorTools::interpolate_boundary_values(dof_handler,
-  //                                          types::boundary_id(0),
-  //                                          Functions::ZeroFunction<1>(),
-  //                                          boundary_values);
-  MatrixTools::apply_boundary_values(boundary_values,
-                                     system_matrix,
-                                     solution,
-                                     system_rhs);
-}
- */
-
-// Paul's, mine's above
-
+// Paul
 template <int dim> void PoissonProblem<dim>::assemble_system() {
   Assert(system_matrix.m() == dof_handler.n_dofs(),
          ExcMessage("Matrix not initialized correctly"));
@@ -400,8 +253,6 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   Vector<double> cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-  Assert(rhs_function != nullptr, ExcMessage("RHS function not set"));
-
   for (const auto &cell : dof_handler.active_cell_iterators()) {
     fe_values.reinit(cell);
 
@@ -409,7 +260,8 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
     cell_rhs = 0;
 
     for (const auto q : fe_values.quadrature_point_indices()) {
-      const double rho = rhs_function->value(fe_values.quadrature_point(q));
+      const double rho = rhs_function(
+          fe_values.quadrature_point(q)); // Eval rhs_function at q points
 
       for (const unsigned int i : fe_values.dof_indices())
         for (const unsigned int j : fe_values.dof_indices())
@@ -437,6 +289,7 @@ template <int dim> void PoissonProblem<dim>::solve() {
   // preconditioner.initialize(system_matrix, 1.2);
 
   // solver.solve(system_matrix, solution, system_rhs, preconditioner);
+
   solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
   constraints.distribute(solution);
 }

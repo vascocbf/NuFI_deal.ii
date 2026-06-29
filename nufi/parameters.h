@@ -32,7 +32,7 @@ constexpr double WAVE_NR = 0.5;
 constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 
 // NUFI options
-constexpr double DT = 1. / 10.;
+constexpr double DT = 1. / 8.;
 constexpr unsigned int TMAX = 100;
 
 // Plotting options

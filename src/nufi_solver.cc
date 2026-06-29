@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
-#include <deal.II/numerics/fe_field_function.h>
+#include <deal.II/numerics/vector_tools.h>
 
 #include <cstddef>
 #include <iostream>
@@ -74,7 +74,7 @@ NuFISolver::eval_f(unsigned int n, double x, double u,
   return f0(x, u);
 }
 
-double NuFISolver::eval_rho(const unsigned int n, const double x,
+double NuFISolver::eval_rho(unsigned int n, const double x,
                             const PoissonProblem<1> &poisson,
                             const std::vector<Vector<double>> &phi_history,
                             const unsigned int Nv) const {
@@ -84,14 +84,9 @@ double NuFISolver::eval_rho(const unsigned int n, const double x,
 
   double integral = 0.0;
 
-  if (n == 0) {
-    for (unsigned int i = 0; i < Nv; ++i)
-      integral += f0(x, v_min + i * dv);
-  } else {
 #pragma omp parallel for reduction(+ : integral)
-    for (unsigned int i = 0; i < Nv; ++i)
-      integral += eval_ftilda(n, x, v_min + i * dv, poisson, phi_history);
-  }
+  for (unsigned int i = 0; i < Nv; ++i)
+    integral += eval_ftilda(n, x, v_min + i * dv, poisson, phi_history);
   return 1.0 - integral * dv;
 }
 
@@ -115,6 +110,10 @@ void NuFISolver::run() {
 
   double total_time = 0;
   std::ofstream time_file("results/simulation_time.txt");
+  time_file << "# it step_time total_time" << "\n";
+
+  const double x_min = Parameters::X_DOMAIN_LEFT;
+  double dx = Parameters::CALC_DX;
 
   for (unsigned int it = 0; it < Nt; ++it) {
     stopwatch<double> timer;
@@ -127,8 +126,6 @@ void NuFISolver::run() {
 
     // compute rho
 
-    double dx = Parameters::CALC_DX;
-
 #pragma omp parallel for
     for (size_t i = 0; i < Nx; i++) {
       double x = Parameters::X_DOMAIN_LEFT + i * dx;
@@ -138,8 +135,13 @@ void NuFISolver::run() {
       rho.get()[i] = ith_rho;
     }
 
-    poisson.set_rhs_function(
-        std::make_unique<ChargeDensity_NuFI<1>>(rho.get(), Nx));
+    poisson.set_rhs_function([&rho, x_min, dx, Nx = Nx](const Point<1> &p) {
+      double x = p[0];
+      int i = static_cast<int>(std::floor((x - x_min) / dx));
+      i = (i % Nx + Nx) % Nx;
+      return rho.get()[i];
+    });
+
     poisson.solve_step();
 
     phi_history.push_back(poisson.get_solution());
@@ -150,6 +152,8 @@ void NuFISolver::run() {
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;
     total_time += timer_elapsed;
+
+    time_file << it << " " << step_time << " " << total_time << "\n";
 
     std::cout << "step made in " << step_time << " seconds\n\n";
     if (it % Parameters::PLOT_FREQUENCY == 0) {
@@ -164,8 +168,7 @@ void NuFISolver::run() {
       std::vector<double> E_x(Nx, 0.0);
 #pragma omp parallel for
       for (size_t ix = 0; ix < Nx; ++ix) {
-        E_x[ix] = -eval(Parameters::X_DOMAIN_LEFT + ix * dx, poisson,
-                        phi_history[it]);
+        E_x[ix] = -eval(x_min + ix * dx, poisson, phi_history[it]);
       }
 
       save_space_vector(E_x, "field", it);
