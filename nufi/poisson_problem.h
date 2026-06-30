@@ -33,11 +33,14 @@
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/fe_field_function.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <deal.II/numerics/vector_tools_evaluate.h>
 #include <deal.II/numerics/vector_tools_interpolate.h>
+#include <deal.II/numerics/vector_tools_point_gradient.h>
+#include <deal.II/numerics/vector_tools_point_value.h>
 #include <functional>
 #include <memory>
 #include <string>
@@ -170,14 +173,26 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
 }
 
 template <int dim>
-double eval_point(const Mapping<dim> &mapping,
-                  const DoFHandler<dim> &dof_handler,
-                  const Vector<double> &solution, const Point<dim> &point) {
-  return VectorTools::point_value<dim>(mapping, dof_handler, solution, point);
+double
+eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
+                const Vector<double> &solution, const Point<dim> &point) {
+
+  Tensor<1, dim> grad =
+      VectorTools::point_gradient<dim>(mapping, dof_handler, solution, point);
+  double Ex = grad[0];
+
+  return Ex;
 }
 
-// dealii Poisson
+template <int dim>
+double eval_point_value(const Mapping<dim> &mapping,
+                        const DoFHandler<dim> &dof_handler,
+                        const Vector<double> &solution,
+                        const Point<dim> &point) {
 
+  return VectorTools::point_value<dim>(mapping, dof_handler, solution, point);
+}
+// dealii Poisson
 template <int dim> void PoissonProblem<dim>::create_mesh() {
 
   GridGenerator::hyper_cube(triangulation, Parameters::X_DOMAIN_LEFT,

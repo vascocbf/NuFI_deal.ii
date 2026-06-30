@@ -36,7 +36,7 @@ constexpr double DT = 1. / 8.;
 constexpr unsigned int TMAX = 100;
 
 // Plotting options
-constexpr int PLOT_FREQUENCY = 10;
+constexpr int PLOT_FREQUENCY = 4;
 constexpr size_t PLOT_NX = CALC_NX;
 constexpr double PLOT_DX = LX / PLOT_NX;
 } // namespace Parameters

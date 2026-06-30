@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <iostream>
-
 #include <nufi/nufi_solver.h>
+#include <omp.h>
 
 void clear_results_directory(const std::string &dir) {
   if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir))
@@ -16,13 +16,13 @@ void clear_results_directory(const std::string &dir) {
 }
 
 int main() {
-#include <omp.h>
   std::cout << "Threads: " << omp_get_max_threads() << "\n";
   try {
     clear_results_directory("results");
 
     NuFISolver solver;
     solver.run();
+
   } catch (const std::exception &exc) {
     std::cerr << "\nException:\n" << exc.what() << "\n";
     return 1;

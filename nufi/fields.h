@@ -76,8 +76,8 @@ inline double eval(double x, const PoissonProblem<1> &poisson,
 
   x = x - Parameters::LX * std::floor(x * Parameters::LX_INV); // in domain
 
-  return eval_point<1>(poisson.get_mapping(), poisson.get_dof_handler(),
-                       solution, Point<1>(x));
+  return eval_point_grad<1>(poisson.get_mapping(), poisson.get_dof_handler(),
+                            solution, Point<1>(x));
 }
 
 inline double integral_space_vector(const PoissonProblem<1> &poisson,

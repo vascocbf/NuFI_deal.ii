@@ -80,7 +80,7 @@ double NuFISolver::eval_rho(unsigned int n, const double x,
                             const unsigned int Nv) const {
   const double dv =
       (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
-  const double v_min = Parameters::V_DOMAIN_LEFT;
+  const double v_min = Parameters::V_DOMAIN_LEFT + 0.5 * dv;
 
   double integral = 0.0;
 
@@ -146,14 +146,16 @@ void NuFISolver::run() {
 
     phi_history.push_back(poisson.get_solution());
 
-    std::vector<double> sampled_potential =
-        poisson.sample_electric_potential(x_min, x_max, Nx); // Solution of FE
+    // std::vector<double> sampled_potential =
+    //     poisson.sample_electric_potential(x_min, x_max, Nx); // Solution of
+    //     FE
 
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;
     total_time += timer_elapsed;
 
     time_file << it << " " << step_time << " " << total_time << "\n";
+    time_file.flush();
 
     std::cout << "step made in " << step_time << " seconds\n\n";
     if (it % Parameters::PLOT_FREQUENCY == 0) {
