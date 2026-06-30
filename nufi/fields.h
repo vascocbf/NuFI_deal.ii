@@ -4,8 +4,10 @@
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"
 #include <cmath>
+#include <cstddef>
 #include <deal.II/base/function.h>
 #include <deal.II/base/point.h>
+#include <vector>
 
 using namespace dealii;
 
@@ -69,15 +71,22 @@ inline double f0(const double x, const double v,
 }
 
 // wrapper for eval_point() { VectorTools::point_values() }
-inline double eval(double x, const PoissonProblem<1> &poisson,
-                   const Vector<double> &solution) noexcept {
+inline std::vector<double> eval(std::vector<double> &X,
+                                const PoissonProblem<1> &poisson,
+                                const Vector<double> &solution) noexcept {
+  size_t x_size = X.size();
+  std::vector<double> evals(x_size);
+  std::vector<Point<1>> Points(x_size);
 
-  x -= Parameters::X_DOMAIN_LEFT;
+  for (size_t i = 0; i < x_size; ++i) {
+    X[i] = X[i] - Parameters::X_DOMAIN_LEFT;
+    X[i] = X[i] - Parameters::LX * std::floor(X[i] * Parameters::LX_INV);
 
-  x = x - Parameters::LX * std::floor(x * Parameters::LX_INV); // in domain
+    Points[i][0] = X[i];
+  }
 
-  return eval_point_grad<1>(poisson.get_mapping(), poisson.get_dof_handler(),
-                            solution, Point<1>(x));
+  return eval_vector_grad(poisson.get_mapping(), poisson.get_dof_handler(),
+                          solution, Points);
 }
 
 inline double integral_space_vector(const PoissonProblem<1> &poisson,

@@ -19,16 +19,18 @@ public:
   NuFISolver();
 
   void run();
-  double eval_rho(unsigned int n, const double x,
-                  const PoissonProblem<1> &poisson,
-                  const std::vector<Vector<double>> &phi_history,
-                  const unsigned int Nv = Parameters::NV) const;
-  double eval_ftilda(unsigned int n, double x, double u,
-                     const PoissonProblem<1> &poisson,
-                     const std::vector<Vector<double>> &phi_history) const;
-  double eval_f(unsigned int n, double x, double u,
-                const PoissonProblem<1> &poisson,
-                const std::vector<Vector<double>> &phi_history) const;
+  std::vector<double> eval_rho(unsigned int n, std::vector<double> &x,
+                               const PoissonProblem<1> &poisson,
+                               const std::vector<Vector<double>> &phi_history,
+                               const unsigned int Nv = Parameters::NV) const;
+  std::vector<double>
+  eval_ftilda(unsigned int, std::vector<double> &x, double u,
+              const PoissonProblem<1> &poisson,
+              const std::vector<Vector<double>> &phi_history) const;
+  std::vector<double>
+  eval_f(unsigned int n, std::vector<double> &x, double u,
+         const PoissonProblem<1> &poisson,
+         const std::vector<Vector<double>> &phi_history) const;
 
 private:
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);

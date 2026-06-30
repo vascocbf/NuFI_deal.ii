@@ -185,6 +185,20 @@ eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
 }
 
 template <int dim>
+std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
+                                     const DoFHandler<dim> &dof_handler,
+                                     const Vector<double> &solution,
+                                     const std::vector<Point<dim>> &points) {
+  size_t p_size = points.size();
+
+  std::vector<double> Ex(p_size);
+  for (size_t i = 0; i < p_size; ++i)
+    Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
+
+  return Ex;
+}
+
+template <int dim>
 double eval_point_value(const Mapping<dim> &mapping,
                         const DoFHandler<dim> &dof_handler,
                         const Vector<double> &solution,

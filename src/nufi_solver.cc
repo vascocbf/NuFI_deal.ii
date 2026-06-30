@@ -22,72 +22,127 @@
 
 using namespace dealii;
 
-double
-NuFISolver::eval_ftilda(unsigned int n, double x, double u,
+std::vector<double>
+NuFISolver::eval_ftilda(unsigned int n, std::vector<double> &X, double u,
                         const PoissonProblem<1> &poisson,
                         const std::vector<Vector<double>> &phi_history) const {
-  if (n == 0)
-    return f0(x, u);
 
-  double Ex;
+  size_t x_size = X.size();
+
+  std::vector<double> U(x_size, u);
+  std::vector<double> results(x_size);
+  if (n == 0) {
+    for (size_t i = 0; i < x_size; ++i)
+      results[i] = f0(X[i], U[i]);
+    return results;
+  }
+
+  std::vector<double> Ex(x_size);
+  std::vector<double> tmp(x_size);
 
   // We omit the initial half-step.
-
   while (--n) {
-    x = x - Parameters::DT * u;
-    Ex = -eval(x, poisson, phi_history[n]);
-    u = u + Parameters::DT * Ex;
+    for (size_t i = 0; i < x_size; ++i)
+      X[i] = X[i] - Parameters::DT * U[i];
+
+    tmp = eval(X, poisson, phi_history[n]); // call eval only once
+
+    for (size_t i = 0; i < x_size; ++i) {
+      Ex[i] = -tmp[i];
+      U[i] = U[i] + Parameters::DT * Ex[i];
+    }
   }
 
   // The final half-step.
-  x = x - Parameters::DT * u;
-  Ex = -eval(x, poisson, phi_history[n]);
-  u += 0.5 * Parameters::DT * Ex;
+  for (size_t i = 0; i < x_size; ++i)
+    X[i] = X[i] - Parameters::DT * U[i];
 
-  return f0(x, u);
+  tmp = eval(X, poisson, phi_history[n]); // call eval only once
+
+  for (size_t i = 0; i < x_size; ++i) {
+    Ex[i] = -tmp[i];
+    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+  }
+  for (size_t i = 0; i < x_size; ++i)
+    results[i] = f0(X[i], U[i]);
+  return results;
 }
 
-double
-NuFISolver::eval_f(unsigned int n, double x, double u,
+std::vector<double>
+NuFISolver::eval_f(unsigned int n, std::vector<double> &X, double u,
                    const PoissonProblem<1> &poisson,
                    const std::vector<Vector<double>> &phi_history) const {
-  if (n == 0)
-    return f0(x, u);
 
-  double Ex;
+  size_t x_size = X.size();
 
+  std::vector<double> U(x_size, u);
+  std::vector<double> results(x_size);
+  if (n == 0) {
+    for (size_t i = 0; i < x_size; ++i)
+      results[i] = f0(X[i], U[i]);
+    return results;
+  }
+
+  std::vector<double> Ex(x_size);
+
+  std::vector<double> tmp(x_size);
   // Initial half-step.
-  Ex = -eval(x, poisson, phi_history[n]);
-  u += 0.5 * Parameters::DT * Ex;
+  tmp = eval(X, poisson, phi_history[n]); // call eval only once
+  for (size_t i = 0; i < x_size; ++i) {
+    Ex[i] = -tmp[i];
+    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+  }
 
   while (--n) {
-    x = x - Parameters::DT * u;
-    Ex = -eval(x, poisson, phi_history[n]);
-    u = u + Parameters::DT * Ex;
+    for (size_t i = 0; i < x_size; ++i)
+      X[i] = X[i] - Parameters::DT * U[i];
+
+    tmp = eval(X, poisson, phi_history[n]); // call eval only once
+    for (size_t i = 0; i < x_size; ++i) {
+      Ex[i] = -tmp[i];
+      U[i] = U[i] + Parameters::DT * Ex[i];
+    }
   }
 
   // The final half-step.
-  x = x - Parameters::DT * u;
-  Ex = -eval(x, poisson, phi_history[n]);
-  u += 0.5 * Parameters::DT * Ex;
+  for (size_t i = 0; i < x_size; ++i)
+    X[i] = X[i] - Parameters::DT * U[i];
 
-  return f0(x, u);
+  tmp = eval(X, poisson, phi_history[n]); // call eval only once
+  for (size_t i = 0; i < x_size; ++i) {
+    Ex[i] = -tmp[i];
+    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+  }
+
+  for (size_t i = 0; i < x_size; ++i)
+    results[i] = f0(X[i], U[i]);
+  return results;
 }
 
-double NuFISolver::eval_rho(unsigned int n, const double x,
-                            const PoissonProblem<1> &poisson,
-                            const std::vector<Vector<double>> &phi_history,
-                            const unsigned int Nv) const {
+std::vector<double>
+NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
+                     const PoissonProblem<1> &poisson,
+                     const std::vector<Vector<double>> &phi_history,
+                     const unsigned int Nv) const {
+  size_t x_size = X.size();
   const double dv =
       (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
   const double v_min = Parameters::V_DOMAIN_LEFT + 0.5 * dv;
 
-  double integral = 0.0;
+  std::vector<double> integral(x_size, 0.0);
 
-#pragma omp parallel for reduction(+ : integral)
-  for (unsigned int i = 0; i < Nv; ++i)
-    integral += eval_ftilda(n, x, v_min + i * dv, poisson, phi_history);
-  return 1.0 - integral * dv;
+  std::vector<double> tmp_int(x_size);
+
+  for (unsigned int i = 0; i < Nv; ++i) {
+    tmp_int = eval_ftilda(n, X, v_min + i * dv, poisson,
+                          phi_history); // used eval_ftilda once per i
+    for (size_t ii = 0; ii < x_size; ++ii)
+      integral[ii] += tmp_int[ii];
+  }
+
+  for (size_t i = 0; i < x_size; ++i)
+    integral[i] = 1 - integral[i] * dv;
+  return integral;
 }
 
 void NuFISolver::run() {
