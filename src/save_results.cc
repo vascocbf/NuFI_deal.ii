@@ -4,6 +4,7 @@
 #include "nufi/nufi_solver.h"
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"
+#include <cstddef>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -21,22 +22,20 @@ void save_f(const NuFISolver &solver, unsigned int n,
   double vmin = Parameters::V_DOMAIN_LEFT;
   double vmax = Parameters::V_DOMAIN_RIGHT;
 
-  double dx = (xmax - xmin) / Nx_out;
   double dv = (vmax - vmin) / Nv_out;
 
   file << Nx_out << " " << Nv_out << "\n";
   file << xmin << " " << xmax << "\n";
   file << vmin << " " << vmax << "\n";
 
-  for (unsigned int i = 0; i < Nx_out; ++i) {
-    double x = xmin + (i + 0.5) * dx;
+  std::vector<double> x_eval = make_x_eval(Nx_out);
+  std::vector<double> val(Nx_out);
 
-    for (unsigned int j = 0; j < Nv_out; ++j) {
-      double v = vmin + (j + 0.5) * dv;
-
-      double val = solver.eval_f(n, x, v, poisson, phi_history);
-
-      file << val;
+  for (unsigned int j = 0; j < Nv_out; ++j) {
+    double v = vmin + (j + 0.5) * dv;
+    val = solver.eval_f(n, x_eval, v, poisson, phi_history);
+    for (unsigned int i = 0; i < Nx_out; ++i) {
+      file << val[i];
 
       if (j < Nv_out - 1)
         file << " ";
@@ -56,14 +55,14 @@ void save_rho(const NuFISolver &solver, unsigned int n,
 
   double xmin = Parameters::X_DOMAIN_LEFT;
   double xmax = Parameters::X_DOMAIN_RIGHT;
-  double dx = (xmax - xmin) / Nx_out;
 
+  std::vector<double> x_eval = make_x_eval(Nx_out);
   file << Nx_out << "\n";
   file << xmin << " " << xmax << "\n";
 
-  for (unsigned int i = 0; i < Nx_out; ++i, xmin += dx) {
-    double val = solver.eval_rho(n, xmin, poisson, phi_history);
-    file << val;
+  std::vector<double> tmp = solver.eval_rho(n, x_eval, poisson, phi_history);
+  for (size_t i = 0; i < Nx_out; ++i) {
+    file << tmp[i];
     file << "\n";
   }
   file.close();
@@ -77,16 +76,17 @@ void save_Efield([[maybe_unused]] unsigned int n,
 
   double xmin = Parameters::X_DOMAIN_LEFT;
   double xmax = Parameters::X_DOMAIN_RIGHT;
-  double dx = (xmax - xmin) / Nx_out;
+
+  std::vector<double> x_eval = make_x_eval(Nx_out);
 
   // select from E_coeffs
 
   file << Nx_out << "\n";
   file << xmin << " " << xmax << "\n";
 
-  for (unsigned int i = 0; i < Nx_out; ++i, xmin += dx) {
-    double val = -eval(xmin, poisson, phi_history[n]);
-    file << val;
+  std::vector<double> tmp = eval(x_eval, poisson, phi_history[n]);
+  for (size_t i = 0; i < Nx_out; ++i) {
+    file << -tmp[i];
     file << "\n";
   }
   file.close();

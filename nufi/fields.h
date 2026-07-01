@@ -59,6 +59,18 @@ using namespace dealii;
 //     }
 //     return indices;
 // }
+inline std::vector<double> make_x_eval(size_t Nx) {
+  std::vector<double> x_eval(Nx);
+  for (size_t i = 0; i < Nx; ++i)
+    x_eval[i] = Parameters::X_DOMAIN_LEFT + i * Parameters::CALC_DX;
+  return x_eval;
+}
+
+inline void reset_x_eval(std::vector<double> &x_vals) {
+  const size_t Nx = x_vals.size();
+  for (size_t i = 0; i < Nx; ++i)
+    x_vals[i] = Parameters::X_DOMAIN_LEFT + i * Parameters::CALC_DX;
+};
 
 inline double f0(const double x, const double v,
                  const double eps = Parameters::EPS,
@@ -95,11 +107,13 @@ inline double integral_space_vector(const PoissonProblem<1> &poisson,
                                     size_t Nx = Parameters::PLOT_NX) {
   double integral = 0.0;
   double xmin = Parameters::X_DOMAIN_LEFT;
-#pragma omp parallel for reduction(+ : integral)
-  for (size_t i = 0; i < Nx; ++i) {
-    double x = xmin + i * dx;
-    integral += eval(x, poisson, solution);
-  }
+  std::vector<double> x_eval(Nx);
+  for (size_t i = 0; i < Nx; ++i)
+    x_eval[i] = xmin + i * dx;
+
+  std::vector<double> tmp = eval(x_eval, poisson, solution);
+  for (size_t i = 0; i < Nx; ++i)
+    integral += tmp[i];
   return integral * dx;
 };
 
@@ -109,12 +123,13 @@ inline double integral_space_vector_squared(const PoissonProblem<1> &poisson,
                                             size_t Nx = Parameters::PLOT_NX) {
   double integral = 0.0;
   double xmin = Parameters::X_DOMAIN_LEFT;
-#pragma omp parallel for reduction(+ : integral)
-  for (size_t i = 0; i < Nx; ++i) {
-    double x = xmin + i * dx;
-    double val = eval(x, poisson, solution);
-    integral += val * val;
-  }
+  std::vector<double> x_eval(Nx);
+  for (size_t i = 0; i < Nx; ++i)
+    x_eval[i] = xmin + i * dx;
+
+  std::vector<double> tmp = eval(x_eval, poisson, solution);
+  for (size_t i = 0; i < Nx; ++i)
+    integral += tmp[i] * tmp[i];
   return integral * dx;
 };
 

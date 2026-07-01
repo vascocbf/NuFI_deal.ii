@@ -134,14 +134,14 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
   std::vector<double> tmp_int(x_size);
 
   for (unsigned int i = 0; i < Nv; ++i) {
-    tmp_int = eval_ftilda(n, X, v_min + i * dv, poisson,
-                          phi_history); // used eval_ftilda once per i
+    tmp_int = eval_ftilda(n, X, v_min + i * dv, poisson, phi_history);
     for (size_t ii = 0; ii < x_size; ++ii)
       integral[ii] += tmp_int[ii];
   }
 
   for (size_t i = 0; i < x_size; ++i)
     integral[i] = 1 - integral[i] * dv;
+  reset_x_eval(X);
   return integral;
 }
 
@@ -155,13 +155,16 @@ void NuFISolver::run() {
       reinterpret_cast<double *>(std::aligned_alloc(64, sizeof(double) * Nx)),
       std::free};
 
+  if (rho == nullptr)
+    throw std::bad_alloc{};
+
   std::vector<double> int_E_squared;
   int_E_squared.reserve(Nt);
 
   std::vector<Vector<double>> phi_history;
 
-  if (rho == nullptr)
-    throw std::bad_alloc{};
+  size_t CALC_NX = Parameters::CALC_NX;
+  std::vector<double> x_eval = make_x_eval(CALC_NX);
 
   double total_time = 0;
   std::ofstream time_file("results/simulation_time.txt");
@@ -180,14 +183,12 @@ void NuFISolver::run() {
               << std::endl;
 
     // compute rho
+    std::vector<double> tmp_rho =
+        eval_rho(it, x_eval, poisson, phi_history, Parameters::NV);
 
-#pragma omp parallel for
-    for (size_t i = 0; i < Nx; i++) {
-      double x = Parameters::X_DOMAIN_LEFT + i * dx;
-      double ith_rho = eval_rho(it, x, poisson, phi_history, Parameters::NV);
-
-      AssertThrow(std::isfinite(ith_rho), ExcMessage("NaN detected in rho"));
-      rho.get()[i] = ith_rho;
+    for (size_t i = 0; i < CALC_NX; ++i) {
+      AssertThrow(std::isfinite(tmp_rho[i]), ExcMessage("NaN detected in rho"));
+      rho.get()[i] = tmp_rho[i];
     }
 
     poisson.set_rhs_function([&rho, x_min, dx, Nx = Nx](const Point<1> &p) {
@@ -222,12 +223,12 @@ void NuFISolver::run() {
       // save_Efield(it, coeffs.get(), 128, "results/field_" +
       // std::to_string(it) + ".dat");
 
-      std::vector<double> E_x(Nx, 0.0);
-#pragma omp parallel for
-      for (size_t ix = 0; ix < Nx; ++ix) {
-        E_x[ix] = -eval(x_min + ix * dx, poisson, phi_history[it]);
-      }
-
+      std::vector<double> E_x(CALC_NX);
+      std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
+      std::vector<double> tmp_Ex = eval(x_eval_Ex, poisson, phi_history[it]);
+      reset_x_eval(x_eval_Ex);
+      for (size_t i = 0; i < CALC_NX; ++i)
+        E_x[i] = -tmp_Ex[i];
       save_space_vector(E_x, "field", it);
 
       double int_val =
