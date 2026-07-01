@@ -34,10 +34,11 @@ void save_f(const NuFISolver &solver, unsigned int n,
   for (unsigned int j = 0; j < Nv_out; ++j) {
     double v = vmin + (j + 0.5) * dv;
     val = solver.eval_f(n, x_eval, v, poisson, phi_history);
+
     for (unsigned int i = 0; i < Nx_out; ++i) {
       file << val[i];
 
-      if (j < Nv_out - 1)
+      if (j < Nx_out - 1)
         file << " ";
     }
 
