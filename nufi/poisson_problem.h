@@ -22,6 +22,7 @@
 #include <deal.II/lac/vector.h>
 
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
@@ -41,7 +42,9 @@
 #include <deal.II/numerics/vector_tools_interpolate.h>
 #include <deal.II/numerics/vector_tools_point_gradient.h>
 #include <deal.II/numerics/vector_tools_point_value.h>
+#include <fstream>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -72,6 +75,12 @@ public:
   std::vector<double> sample_electric_potential(double x_min, double x_max,
                                                 unsigned int Nx);
 
+  std::vector<double>
+  eval_vector_grad(const Vector<double> &solution,
+                   const std::vector<Point<dim>> &points) const;
+
+  void save_grid_to_file(const std::string &filename) const;
+
 private:
   void create_mesh();
   void setup_system();
@@ -93,6 +102,14 @@ private:
   std::function<double(const Point<dim> &)> rhs_function;
 
   MappingQ<dim> mapping;
+
+  // typename DoFHandler<dim>::active_cell_iterator
+  // find_cell(const DoFHandler<dim> &dof_handler, const Point<dim> x);
+
+  std::vector<typename DoFHandler<dim>::active_cell_iterator> active_cells;
+
+  mutable std::vector<double> local_solution_buffer;
+  mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
 };
 
 // Utilities
@@ -173,30 +190,56 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
 }
 
 template <int dim>
-double
-eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
-                const Vector<double> &solution, const Point<dim> &point) {
+std::vector<double> PoissonProblem<dim>::eval_vector_grad(
+    const Vector<double> &solution,
+    const std::vector<Point<dim>> &points) const {
 
-  Tensor<1, dim> grad =
-      VectorTools::point_gradient<dim>(mapping, dof_handler, solution, point);
-  double Ex = grad[0];
+  const unsigned int n_cells = active_cells.size();
+  const double xmin = Parameters::X_DOMAIN_LEFT;
+  const double h = Parameters::LX / static_cast<double>(n_cells);
 
-  return Ex;
+  std::vector<double> values(points.size());
+
+  for (unsigned int p = 0; p < points.size(); ++p) {
+    const double x = points[p][0];
+
+    const unsigned int cell_index =
+        std::min(static_cast<unsigned int>(std::floor((x - xmin) / h)),
+                 n_cells - 1); // index is at most n_cells - 1
+
+    const auto cell = active_cells[cell_index];
+
+    const double xi = (x - cell->vertex(0)[0]) / h;
+
+    Point<dim> unit_point;
+    unit_point[0] = xi;
+
+    cell->get_dof_values(solution, local_solution_buffer.begin(),
+                         local_solution_buffer.end());
+
+    evaluator->reinit(cell, ArrayView<const Point<dim>>(&unit_point, 1));
+
+    evaluator->evaluate(local_solution_buffer, EvaluationFlags::gradients);
+
+    values[p] = evaluator->get_gradient(0)[0];
+  }
+
+  return values;
 }
 
-template <int dim>
-std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
-                                     const DoFHandler<dim> &dof_handler,
-                                     const Vector<double> &solution,
-                                     const std::vector<Point<dim>> &points) {
-  size_t p_size = points.size();
-
-  std::vector<double> Ex(p_size);
-  for (size_t i = 0; i < p_size; ++i)
-    Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
-
-  return Ex;
-}
+// template <int dim>
+// std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
+//                                      const DoFHandler<dim> &dof_handler,
+//                                      const Vector<double> &solution,
+//                                      const std::vector<Point<dim>> &points) {
+//   size_t p_size = points.size();
+//
+//   std::vector<double> Ex(p_size);
+//   for (size_t i = 0; i < p_size; ++i)
+//     Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
+//
+//   return Ex;
+// }
 
 template <int dim>
 double eval_point_value(const Mapping<dim> &mapping,
@@ -206,6 +249,16 @@ double eval_point_value(const Mapping<dim> &mapping,
 
   return VectorTools::point_value<dim>(mapping, dof_handler, solution, point);
 }
+
+template <int dim>
+void PoissonProblem<dim>::save_grid_to_file(const std::string &filename) const {
+  std::ofstream out(filename);
+  GridOut grid_out;
+  grid_out.write_svg(triangulation, out);
+
+  std::cout << "Grid written to " << filename << "\n";
+}
+
 // dealii Poisson
 template <int dim> void PoissonProblem<dim>::create_mesh() {
 
@@ -262,6 +315,17 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
 
   solution.reinit(dof_handler.n_dofs());
   system_rhs.reinit(dof_handler.n_dofs());
+
+  // used for evaluator to avoid running it anytime there is an eval
+  active_cells.clear();
+
+  for (auto cell = dof_handler.begin_active(); cell != dof_handler.end();
+       ++cell)
+    active_cells.push_back(cell);
+
+  local_solution_buffer.resize(fe.n_dofs_per_cell());
+  evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
+                                                            update_gradients);
 }
 
 // Paul

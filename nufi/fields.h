@@ -97,8 +97,7 @@ inline std::vector<double> eval(std::vector<double> &X,
     Points[i][0] = X[i];
   }
 
-  return eval_vector_grad(poisson.get_mapping(), poisson.get_dof_handler(),
-                          solution, Points);
+  return poisson.eval_vector_grad(solution, Points);
 }
 
 inline double integral_space_vector(const PoissonProblem<1> &poisson,

@@ -38,7 +38,7 @@ void save_f(const NuFISolver &solver, unsigned int n,
     for (unsigned int i = 0; i < Nx_out; ++i) {
       file << val[i];
 
-      if (j < Nx_out - 1)
+      if (i < Nx_out - 1)
         file << " ";
     }
 
