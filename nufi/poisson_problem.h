@@ -50,6 +50,7 @@
 #include <utility>
 #include <vector>
 
+#include "nufi/cells.h"
 #include "nufi/parameters.h"
 
 using namespace dealii;
@@ -227,6 +228,16 @@ std::vector<double> PoissonProblem<dim>::eval_vector_grad(
   return values;
 }
 
+// template <int dim>
+// std::vector<double> eval_point_grad(const Mapping<dim> &mapping,
+//                                      const DoFHandler<dim> &dof_handler,
+//                                      const Vector<double> &solution,
+//                                      const Point<dim> &point) {
+//     Tensor Ex = VectorTools::point_gradient(mapping, dof_handler, solution,
+//     points);
+//   return Ex[0];
+// }
+//
 // template <int dim>
 // std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
 //                                      const DoFHandler<dim> &dof_handler,
