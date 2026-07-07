@@ -23,6 +23,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/grid_refinement.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
 
@@ -34,8 +35,10 @@
 #include <deal.II/fe/fe_values.h>
 
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/fe_field_function.h>
 #include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/vector_tools.h>
 
 #include <deal.II/numerics/vector_tools_evaluate.h>
@@ -63,6 +66,7 @@ public:
 
   void initialize();
   void solve_step();
+  void coarse_and_refine_grid();
   void run();
 
   void set_rhs_function(std::function<double(const Point<dim> &)> f);
@@ -104,16 +108,16 @@ private:
 
   MappingQ<dim> mapping;
 
-  // typename DoFHandler<dim>::active_cell_iterator
-  // find_cell(const DoFHandler<dim> &dof_handler, const Point<dim> x);
-
-  std::vector<typename DoFHandler<dim>::active_cell_iterator> active_cells;
+  CellLocator<dim> cell_locator;
+  // std::vector<typename DoFHandler<dim>::active_cell_iterator> active_cells;
 
   mutable std::vector<double> local_solution_buffer;
   mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
 };
 
+//====//====//
 // Utilities
+//====//====//
 
 template <int dim>
 void PoissonProblem<dim>::set_rhs_function(
@@ -195,31 +199,16 @@ std::vector<double> PoissonProblem<dim>::eval_vector_grad(
     const Vector<double> &solution,
     const std::vector<Point<dim>> &points) const {
 
-  const unsigned int n_cells = active_cells.size();
-  const double xmin = Parameters::X_DOMAIN_LEFT;
-  const double h = Parameters::LX / static_cast<double>(n_cells);
-
   std::vector<double> values(points.size());
 
   for (unsigned int p = 0; p < points.size(); ++p) {
-    const double x = points[p][0];
 
-    const unsigned int cell_index =
-        std::min(static_cast<unsigned int>(std::floor((x - xmin) / h)),
-                 n_cells - 1); // index is at most n_cells - 1
-
-    const auto cell = active_cells[cell_index];
-
-    const double xi = (x - cell->vertex(0)[0]) / h;
-
-    Point<dim> unit_point;
-    unit_point[0] = xi;
+    const auto cell = cell_locator.locate(points[p]);
 
     cell->get_dof_values(solution, local_solution_buffer.begin(),
                          local_solution_buffer.end());
 
-    evaluator->reinit(cell, ArrayView<const Point<dim>>(&unit_point, 1));
-
+    evaluator->reinit(cell, ArrayView<const Point<dim>>(&points[p], 1));
     evaluator->evaluate(local_solution_buffer, EvaluationFlags::gradients);
 
     values[p] = evaluator->get_gradient(0)[0];
@@ -228,15 +217,14 @@ std::vector<double> PoissonProblem<dim>::eval_vector_grad(
   return values;
 }
 
-// template <int dim>
-// std::vector<double> eval_point_grad(const Mapping<dim> &mapping,
-//                                      const DoFHandler<dim> &dof_handler,
-//                                      const Vector<double> &solution,
-//                                      const Point<dim> &point) {
-//     Tensor Ex = VectorTools::point_gradient(mapping, dof_handler, solution,
-//     points);
-//   return Ex[0];
-// }
+template <int dim>
+std::vector<double>
+eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
+                const Vector<double> &solution, const Point<dim> &point) {
+  Tensor Ex =
+      VectorTools::point_gradient(mapping, dof_handler, solution, point);
+  return Ex[0];
+}
 //
 // template <int dim>
 // std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
@@ -270,7 +258,9 @@ void PoissonProblem<dim>::save_grid_to_file(const std::string &filename) const {
   std::cout << "Grid written to " << filename << "\n";
 }
 
+//======//======//
 // dealii Poisson
+//======//======//
 template <int dim> void PoissonProblem<dim>::create_mesh() {
 
   GridGenerator::hyper_cube(triangulation, Parameters::X_DOMAIN_LEFT,
@@ -328,11 +318,7 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   system_rhs.reinit(dof_handler.n_dofs());
 
   // used for evaluator to avoid running it anytime there is an eval
-  active_cells.clear();
-
-  for (auto cell = dof_handler.begin_active(); cell != dof_handler.end();
-       ++cell)
-    active_cells.push_back(cell);
+  cell_locator.rebuild(dof_handler, triangulation);
 
   local_solution_buffer.resize(fe.n_dofs_per_cell());
   evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
@@ -381,6 +367,35 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
     constraints.distribute_local_to_global(
         cell_matrix, cell_rhs, local_dof_indices, system_matrix, system_rhs);
   }
+}
+
+template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid() {
+  // Add refinement and coasring algorithm here
+  Vector<float> error_per_cell(triangulation.n_active_cells());
+
+  KellyErrorEstimator<dim>::estimate(
+      dof_handler, QGauss<dim - 1>(fe.degree + 1),
+      std::map<types::boundary_id, const Function<dim> *>(), solution,
+      error_per_cell);
+
+  GridRefinement::refine_and_coarsen_fixed_number(
+      triangulation, error_per_cell, 0.3,
+      0.03); // These numbers are to be reviewd and changed
+
+  triangulation.prepare_coarsening_and_refinement();
+
+  // solution tranafer
+
+  // setup_system
+
+  // solution_transfer interpolate
+  // non_zero_constraint.distribute(current solution)
+  //
+  //======//======//
+  // CHECK step-15.
+
+  // rebuild cells with the grid
+  cell_locator.rebuild(dof_handler, triangulation);
 }
 
 template <int dim> void PoissonProblem<dim>::solve() {

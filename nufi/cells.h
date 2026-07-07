@@ -11,11 +11,12 @@
 using namespace dealii;
 
 template <int dim> struct CellInfo {
+  // what needs to be given to evaluator
   typename DoFHandler<dim>::active_cell_iterator cell;
-
+  // usefull for locator
   Point<dim> lower;
-  Point<dim> upper;
-  double h;
+  // Point<dim> upper;
+  // double h;
 };
 
 template <int dim> class CellLocator {
@@ -43,9 +44,8 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
 
     info.cell = cell;
     info.lower = cell->vertex(0);
-    info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
-
-    info.h = info.upper[0] - info.lower[0];
+    // info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
+    // info.h = info.upper[0] - info.lower[0];
 
     cells.push_back(info);
   }
