@@ -131,7 +131,8 @@ void PoissonProblem<dim>::set_rhs_function(
 
 template <int dim>
 PoissonProblem<dim>::PoissonProblem(unsigned int degree)
-    : fe(degree), dof_handler(triangulation), mapping(degree) {}
+    : triangulation(Triangulation<dim>::limit_level_difference_at_vertices),
+      fe(degree), dof_handler(triangulation), mapping(degree) {}
 
 template <int dim>
 std::vector<double>
@@ -416,7 +417,8 @@ void PoissonProblem<dim>::coarse_and_refine_grid(
 
   constraints.distribute(solution);
 
-  cell_locator.rebuild(dof_handler, triangulation);
+  // cell_locator.rebuild(dof_handler, triangulation); // No need to be called
+  // again because its in setup_system();
 
   std::cout << "Refinement Finished" << "\n";
 

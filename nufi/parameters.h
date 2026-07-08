@@ -13,7 +13,7 @@ constexpr double X_DOMAIN_RIGHT = 4 * M_PI;
 constexpr double LX = std::abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT);
 constexpr double LX_INV = 1 / LX;
 
-constexpr size_t CALC_NX = 128;
+constexpr size_t CALC_NX = 256;
 constexpr double CALC_DX = LX / CALC_NX;
 
 constexpr double V_DOMAIN_LEFT = -10.;
@@ -25,7 +25,7 @@ constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 6;
 constexpr unsigned int FE_DEGREE = 2;
-constexpr unsigned int CONVERGENCE_ITERATIONS = 10000;
+constexpr unsigned int CONVERGENCE_ITERATIONS = 15000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
 constexpr double EPS = 0.01;
