@@ -206,17 +206,17 @@ void NuFISolver::run() {
               << std::endl;
 
     // START: diagnostics
-    std::cout << "cells = " << poisson.triangulation.n_active_cells()
-              << " dofs = " << poisson.dof_handler.n_dofs() << std::endl;
-    double min_h = 1e100;
-    double max_h = 0;
-
-    for (auto cell : poisson.triangulation.active_cell_iterators()) {
-      min_h = std::min(min_h, cell->diameter());
-      max_h = std::max(max_h, cell->diameter());
-    }
-
-    std::cout << "h ratio = " << max_h / min_h << std::endl;
+    std::cout << "cells = " << poisson.triangulation.n_active_cells() << "\n"
+              << " dofs = " << poisson.dof_handler.n_dofs() << "\n";
+    // double min_h = 1e100;
+    // double max_h = 0;
+    //
+    // for (auto cell : poisson.triangulation.active_cell_iterators()) {
+    //   min_h = std::min(min_h, cell->diameter());
+    //   max_h = std::max(max_h, cell->diameter());
+    // }
+    //
+    // std::cout << "h ratio = " << max_h / min_h << std::endl;
 
     // END: diagnostics
 
@@ -248,7 +248,7 @@ void NuFISolver::run() {
       poisson.coarse_and_refine_grid(it, phi_history);
       refine_time = timer.elapsed() - refine_start;
       std::cout << "Refinement step done in "
-                << std::to_string(std::floor(refine_time)) << "[s]";
+                << std::to_string(std::floor(refine_time)) << "[s]" << "\n";
     }
 
     double timer_elapsed = timer.elapsed();

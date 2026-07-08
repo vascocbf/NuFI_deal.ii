@@ -24,8 +24,8 @@ constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 6;
-constexpr unsigned int FE_DEGREE = 2;
-constexpr unsigned int CONVERGENCE_ITERATIONS = 15000;
+constexpr unsigned int FE_DEGREE = 3;
+constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
 constexpr double EPS = 0.01;
@@ -35,10 +35,10 @@ constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 // NUFI options
 constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
-constexpr unsigned int REFINE_FREQUENCY = 5;
+constexpr unsigned int REFINE_FREQUENCY = 10;
 
 // Plotting options
-constexpr int PLOT_FREQUENCY = 5;
+constexpr int PLOT_FREQUENCY = 10;
 constexpr size_t PLOT_NX = CALC_NX;
 constexpr double PLOT_DX = LX / PLOT_NX;
 const std::string PLOT_DIR = "results/";

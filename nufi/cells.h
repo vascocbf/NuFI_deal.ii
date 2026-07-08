@@ -19,14 +19,18 @@ template <int dim> struct CellInfo {
   double h;
 };
 
+template <int dim> struct CellLocation {
+  const CellInfo<dim> *info;
+  Point<dim> reference_point;
+};
+
 template <int dim> class CellLocator {
 public:
   using CellIterator = typename DoFHandler<dim>::active_cell_iterator;
 
   void rebuild(const DoFHandler<dim> &dof_handler,
                const Triangulation<dim> &triangulation);
-
-  CellIterator locate(const Point<dim> &p) const;
+  CellLocation<dim> locate(const Point<dim> &p) const;
 
 private:
   std::vector<CellInfo<dim>> cells;
@@ -58,8 +62,7 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
 }
 
 template <int dim>
-typename DoFHandler<dim>::active_cell_iterator
-CellLocator<dim>::locate(const Point<dim> &p) const {
+CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
   static_assert(dim == 1,
                 "Current CellLocator implementation only supports 1D.");
 
@@ -82,7 +85,12 @@ CellLocator<dim>::locate(const Point<dim> &p) const {
   AssertThrow(x >= it->lower[0] - 1e-12 && x <= it->upper[0] + 1e-12,
               ExcMessage("CellLocator failed to find containing cell."));
 
-  return it->cell;
+  CellLocation<dim> location;
+
+  location.info = &(*it);
+  location.reference_point[0] = (p[0] - it->lower[0]) / it->h;
+
+  return location;
 }
 
 #endif // !CELLS_H

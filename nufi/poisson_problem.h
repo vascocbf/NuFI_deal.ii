@@ -132,7 +132,7 @@ void PoissonProblem<dim>::set_rhs_function(
 template <int dim>
 PoissonProblem<dim>::PoissonProblem(unsigned int degree)
     : triangulation(Triangulation<dim>::limit_level_difference_at_vertices),
-      fe(degree), dof_handler(triangulation), mapping(degree) {}
+      dof_handler(triangulation), fe(degree), mapping(degree) {}
 
 template <int dim>
 std::vector<double>
@@ -208,12 +208,14 @@ std::vector<double> PoissonProblem<dim>::eval_vector_grad(
 
   for (unsigned int p = 0; p < points.size(); ++p) {
 
-    const auto cell = cell_locator.locate(points[p]);
+    const auto cell_location = cell_locator.locate(points[p]);
 
-    cell->get_dof_values(solution, local_solution_buffer.begin(),
-                         local_solution_buffer.end());
+    cell_location.info->cell->get_dof_values(
+        solution, local_solution_buffer.begin(), local_solution_buffer.end());
 
-    evaluator->reinit(cell, ArrayView<const Point<dim>>(&points[p], 1));
+    evaluator->reinit(
+        cell_location.info->cell,
+        ArrayView<const Point<dim>>(&cell_location.reference_point, 1));
     evaluator->evaluate(local_solution_buffer, EvaluationFlags::gradients);
 
     values[p] = evaluator->get_gradient(0)[0];
