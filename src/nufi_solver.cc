@@ -173,7 +173,14 @@ void NuFISolver::run() {
   std::ofstream time_file("results/simulation_time.dat");
 
   double total_time = 0;
-  time_file << "it step_time total_time" << "\n";
+
+  time_file << "it "
+            << "step_time "
+            << "total_time "
+            << "compute_time "
+            << "refine_time "
+            << "plot_time"
+            << "\n";
 
   const double x_min = Parameters::X_DOMAIN_LEFT;
   double dx = Parameters::CALC_DX;
@@ -182,11 +189,30 @@ void NuFISolver::run() {
     stopwatch<double> timer;
 
     double time_elapsed_before = timer.elapsed();
+    double compute_time = 0.0;
+    double refine_time = 0.0;
+    double plot_time = 0.0;
 
     std::cout << "Timestep " << it << " / " << Nt
               << " (simulation time = " << it * Parameters::DT << ")"
               << std::endl;
 
+    // START: diagnostics
+    std::cout << "cells = " << poisson.triangulation.n_active_cells()
+              << " dofs = " << poisson.dof_handler.n_dofs() << std::endl;
+    double min_h = 1e100;
+    double max_h = 0;
+
+    for (auto cell : poisson.triangulation.active_cell_iterators()) {
+      min_h = std::min(min_h, cell->diameter());
+      max_h = std::max(max_h, cell->diameter());
+    }
+
+    std::cout << "h ratio = " << max_h / min_h << std::endl;
+
+    // END: diagnostics
+
+    double compute_start = timer.elapsed();
     // compute rho
     std::vector<double> x_eval = make_x_eval(Nx);
     std::vector<double> tmp_rho =
@@ -207,19 +233,20 @@ void NuFISolver::run() {
     poisson.solve_step();
     phi_history.push_back(poisson.get_solution());
 
-    // std::vector<double> sampled_potential =
-    //     poisson.sample_electric_potential(x_min, x_max, Nx); // Solution of
-    //     FE
+    compute_time = timer.elapsed() - compute_start;
+
+    if (it % Parameters::REFINE_FREQUENCY == 0 && it != 0) {
+      double refine_start = timer.elapsed();
+      poisson.coarse_and_refine_grid(it, phi_history);
+      refine_time = timer.elapsed() - refine_start;
+    }
 
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;
-    total_time += timer_elapsed;
-
-    time_file << it << " " << step_time << " " << total_time << "\n";
-    time_file.flush();
 
     std::cout << "step made in " << step_time << " seconds\n\n";
     if (it % Parameters::PLOT_FREQUENCY == 0) {
+      double plot_start = timer.elapsed();
       std::cout << "Saving results...   ";
       save_f(*this, it, poisson, phi_history, Parameters::PLOT_NX,
              Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
@@ -241,7 +268,13 @@ void NuFISolver::run() {
       int_E_squared.push_back(int_val);
       save_space_vector(int_E_squared, "electricint", it);
       std::cout << "Time since start = " << total_time << "\n\n";
+
+      plot_time = timer.elapsed() - plot_start;
     }
+
+    time_file << it << " " << step_time << " " << total_time << " "
+              << compute_time << " " << refine_time << " " << plot_time << "\n";
+    time_file.flush();
   }
 
   std::cout << "NuFI simulation finished in " << total_time << " seconds.\n";

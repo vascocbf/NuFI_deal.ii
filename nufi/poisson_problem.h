@@ -66,7 +66,8 @@ public:
 
   void initialize();
   void solve_step();
-  void coarse_and_refine_grid();
+  void coarse_and_refine_grid(size_t it,
+                              std::vector<Vector<double>> &solution_history);
   void run();
 
   void set_rhs_function(std::function<double(const Point<dim> &)> f);
@@ -84,7 +85,10 @@ public:
   eval_vector_grad(const Vector<double> &solution,
                    const std::vector<Point<dim>> &points) const;
 
-  void save_grid_to_file(const std::string &filename) const;
+  void save_grid_to_file(std::string &filename) const;
+
+  Triangulation<dim> triangulation;
+  DoFHandler<dim> dof_handler;
 
 private:
   void create_mesh();
@@ -92,9 +96,9 @@ private:
   void assemble_system();
   void solve();
 
-  Triangulation<dim> triangulation;
+  // Triangulation<dim> triangulation;
   FE_Q<dim> fe;
-  DoFHandler<dim> dof_handler;
+  // DoFHandler<dim> dof_handler;
 
   AffineConstraints<double> constraints;
 
@@ -250,10 +254,18 @@ double eval_point_value(const Mapping<dim> &mapping,
 }
 
 template <int dim>
-void PoissonProblem<dim>::save_grid_to_file(const std::string &filename) const {
-  std::ofstream out(filename);
+void PoissonProblem<dim>::save_grid_to_file(std::string &filename) const {
   GridOut grid_out;
-  grid_out.write_svg(triangulation, out);
+
+  if (dim >= 2) {
+    filename += ".svg";
+    std::ofstream out(filename);
+    grid_out.write_svg(triangulation, out);
+  } else if (dim == 1) {
+    filename += ".gnuplot";
+    std::ofstream out(filename);
+    grid_out.write_gnuplot(triangulation, out);
+  }
 
   std::cout << "Grid written to " << filename << "\n";
 }
@@ -371,12 +383,8 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
 
 template <int dim>
 void PoissonProblem<dim>::coarse_and_refine_grid(
-    std::vector<Vector<double>> &solution_history) {
-  // Add refinement and coasring algorithm here
-
-  //======//======//
-  // CHECK step-15.
-  //======//======//
+    size_t it, std::vector<Vector<double>> &solution_history) {
+  std::cout << "Refinement Started" << "\n";
   Vector<float> error_per_cell(triangulation.n_active_cells());
 
   KellyErrorEstimator<dim>::estimate(
@@ -384,15 +392,10 @@ void PoissonProblem<dim>::coarse_and_refine_grid(
       std::map<types::boundary_id, const Function<dim> *>(), solution,
       error_per_cell);
 
-  GridRefinement::refine_and_coarsen_fixed_number(
-      triangulation, error_per_cell, 0.3,
-      0.03); // These numbers are to be reviewd and changed
+  GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
+                                                  0.3, 0.03);
 
   triangulation.prepare_coarsening_and_refinement();
-
-  // old solutions transfer
-  const size_t N_sols = solution_history.size();
-
   SolutionTransfer<dim, Vector<double>> transfer(dof_handler);
   transfer.prepare_for_coarsening_and_refinement(solution_history);
 
@@ -400,14 +403,27 @@ void PoissonProblem<dim>::coarse_and_refine_grid(
 
   setup_system();
 
-  transfer.interpolate(solution_history);
+  std::vector<Vector<double>> new_solution_history(solution_history.size());
+
+  for (auto &vec : new_solution_history)
+    vec.reinit(dof_handler.n_dofs());
+
+  transfer.interpolate(solution_history, new_solution_history);
+
+  solution_history.swap(new_solution_history);
 
   solution = solution_history.back();
 
   constraints.distribute(solution);
 
-  // rebuild cells with the grid
   cell_locator.rebuild(dof_handler, triangulation);
+
+  std::cout << "Refinement Finished" << "\n";
+
+  std::string grid_file_name =
+      Parameters::PLOT_DIR + "grid_" + std::to_string(it);
+
+  save_grid_to_file(grid_file_name);
 }
 
 template <int dim> void PoissonProblem<dim>::solve() {
