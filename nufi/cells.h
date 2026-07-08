@@ -15,8 +15,8 @@ template <int dim> struct CellInfo {
   typename DoFHandler<dim>::active_cell_iterator cell;
   // usefull for locator
   Point<dim> lower;
-  // Point<dim> upper;
-  // double h;
+  Point<dim> upper;
+  double h;
 };
 
 template <int dim> class CellLocator {
@@ -44,11 +44,20 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
 
     info.cell = cell;
     info.lower = cell->vertex(0);
-    // info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
-    // info.h = info.upper[0] - info.lower[0];
+    info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
+
+    if (info.lower[0] > info.upper[0])
+      std::swap(info.lower, info.upper);
+
+    info.h = info.upper[0] - info.lower[0];
 
     cells.push_back(info);
   }
+
+  std::sort(cells.begin(), cells.end(),
+            [](const CellInfo<dim> &a, const CellInfo<dim> &b) {
+              return a.lower[0] < b.lower[0];
+            });
 }
 
 template <int dim>
@@ -62,19 +71,19 @@ CellLocator<dim>::locate(const Point<dim> &p) const {
 
   const double x = p[0];
 
-  // const double x_min = cells.front().lower[0];
-  // const double x_max = cells.back().uppper[0];
-  // const double L = x_max - x_min;
-
-  // binary search loop
   auto it = std::upper_bound(cells.begin(), cells.end(), x,
                              [](double value, const CellInfo<dim> &cell) {
                                return value < cell.lower[0];
-                             });
+                             }); // returns cell to the right of cell with x
+
   if (it == cells.begin())
     it = cells.begin();
   else
     --it;
+
+  // Safety check: make sure the point is really inside this cell
+  AssertThrow(x >= it->lower[0] - 1e-12 && x <= it->upper[0] + 1e-12,
+              ExcMessage("CellLocator failed to find containing cell."));
 
   return it->cell;
 }
