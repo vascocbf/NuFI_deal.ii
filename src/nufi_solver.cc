@@ -205,7 +205,6 @@ void NuFISolver::run() {
     });
 
     poisson.solve_step();
-
     phi_history.push_back(poisson.get_solution());
 
     // std::vector<double> sampled_potential =

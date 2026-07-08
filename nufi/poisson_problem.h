@@ -369,8 +369,14 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   }
 }
 
-template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid() {
+template <int dim>
+void PoissonProblem<dim>::coarse_and_refine_grid(
+    std::vector<Vector<double>> &solution_history) {
   // Add refinement and coasring algorithm here
+
+  //======//======//
+  // CHECK step-15.
+  //======//======//
   Vector<float> error_per_cell(triangulation.n_active_cells());
 
   KellyErrorEstimator<dim>::estimate(
@@ -384,15 +390,21 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid() {
 
   triangulation.prepare_coarsening_and_refinement();
 
-  // solution tranafer
+  // old solutions transfer
+  const size_t N_sols = solution_history.size();
 
-  // setup_system
+  SolutionTransfer<dim, Vector<double>> transfer(dof_handler);
+  transfer.prepare_for_coarsening_and_refinement(solution_history);
 
-  // solution_transfer interpolate
-  // non_zero_constraint.distribute(current solution)
-  //
-  //======//======//
-  // CHECK step-15.
+  triangulation.execute_coarsening_and_refinement();
+
+  setup_system();
+
+  transfer.interpolate(solution_history);
+
+  solution = solution_history.back();
+
+  constraints.distribute(solution);
 
   // rebuild cells with the grid
   cell_locator.rebuild(dof_handler, triangulation);
