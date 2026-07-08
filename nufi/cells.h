@@ -46,9 +46,6 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
     info.lower = cell->vertex(0);
     info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
 
-    if (info.lower[0] > info.upper[0])
-      std::swap(info.lower, info.upper);
-
     info.h = info.upper[0] - info.lower[0];
 
     cells.push_back(info);

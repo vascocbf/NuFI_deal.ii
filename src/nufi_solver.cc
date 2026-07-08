@@ -13,6 +13,7 @@
 #include <iostream>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <vector>
 
 #include "nufi/fields.h"
@@ -151,7 +152,10 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
 }
 
 void NuFISolver::run() {
-  std::cout << "Building E_sline\n\n";
+
+  //====//====//
+  // Run prep //
+  //====//====//
 
   using std::abs;
   using std::max;
@@ -184,6 +188,10 @@ void NuFISolver::run() {
 
   const double x_min = Parameters::X_DOMAIN_LEFT;
   double dx = Parameters::CALC_DX;
+
+  //====//====//
+  // Time loop//
+  //====//====//
 
   for (unsigned int it = 0; it < Nt; ++it) {
     stopwatch<double> timer;
@@ -239,6 +247,8 @@ void NuFISolver::run() {
       double refine_start = timer.elapsed();
       poisson.coarse_and_refine_grid(it, phi_history);
       refine_time = timer.elapsed() - refine_start;
+      std::cout << "Refinement step done in "
+                << std::to_string(std::floor(refine_time)) << "[s]";
     }
 
     double timer_elapsed = timer.elapsed();
