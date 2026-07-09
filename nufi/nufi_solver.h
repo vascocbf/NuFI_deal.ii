@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "nufi/fields.h" //dont remove
+#include "nufi/grids.h"
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"
 
@@ -19,18 +20,19 @@ public:
   NuFISolver();
 
   void run();
-  std::vector<double> eval_rho(unsigned int n, std::vector<double> &x,
-                               const PoissonProblem<1> &poisson,
-                               const std::vector<Vector<double>> &phi_history,
-                               const unsigned int Nv = Parameters::NV) const;
+  std::vector<double>
+  eval_rho(unsigned int n, std::vector<double> &x,
+           const std::vector<GridStructure<1>> &grid_struct,
+           const std::vector<SolutionSnapshot<1>> &phi_history,
+           const unsigned int Nv = Parameters::NV) const;
   std::vector<double>
   eval_ftilda(unsigned int, std::vector<double> &x, double u,
-              const PoissonProblem<1> &poisson,
-              const std::vector<Vector<double>> &phi_history) const;
+              const std::vector<GridStructure<1>> &grid_struct,
+              const std::vector<SolutionSnapshot<1>> &phi_history) const;
   std::vector<double>
   eval_f(unsigned int n, std::vector<double> &x, double u,
-         const PoissonProblem<1> &poisson,
-         const std::vector<Vector<double>> &phi_history) const;
+         const std::vector<GridStructure<1>> &grid_struct,
+         const std::vector<SolutionSnapshot<1>> &phi_history) const;
 
 private:
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);

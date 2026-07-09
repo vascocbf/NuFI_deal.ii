@@ -54,7 +54,9 @@
 #include <vector>
 
 #include "nufi/cells.h"
+#include "nufi/grids.h"
 #include "nufi/parameters.h"
+#include "omp.h"
 
 using namespace dealii;
 
@@ -66,8 +68,7 @@ public:
 
   void initialize();
   void solve_step();
-  void coarse_and_refine_grid(size_t it,
-                              std::vector<Vector<double>> &solution_history);
+  void coarse_and_refine_grid(size_t it);
   void run();
 
   unsigned int get_rhs_size();
@@ -78,6 +79,9 @@ public:
   const Vector<double> &get_solution() const { return solution; }
   const MappingQ<dim> &get_mapping() const { return mapping; }
   const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
+  const Triangulation<dim> &get_triangulation() const { return triangulation; }
+  const FE_Q<dim> &get_fe() const { return fe; }
+  const CellLocator<dim> &get_locator() const { return cell_locator; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
                                             unsigned int Nx);
@@ -117,8 +121,8 @@ private:
 
   MappingQ<dim> mapping;
 
-  mutable std::vector<double> local_solution_buffer;
-  mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
+  // mutable std::vector<double> local_solution_buffer;
+  // mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
 };
 
 //====//====//
@@ -207,31 +211,6 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
   cache.reinit(eval_points, triangulation, mapping);
 
   values = VectorTools::point_values<dim>(cache, dof_handler, solution);
-
-  return values;
-}
-
-template <int dim>
-std::vector<double> PoissonProblem<dim>::eval_vector_grad(
-    const Vector<double> &solution,
-    const std::vector<Point<dim>> &points) const {
-
-  std::vector<double> values(points.size());
-
-  for (unsigned int p = 0; p < points.size(); ++p) {
-
-    const auto cell_location = cell_locator.locate(points[p]);
-
-    cell_location.info->cell->get_dof_values(
-        solution, local_solution_buffer.begin(), local_solution_buffer.end());
-
-    evaluator->reinit(
-        cell_location.info->cell,
-        ArrayView<const Point<dim>>(&cell_location.reference_point, 1));
-    evaluator->evaluate(local_solution_buffer, EvaluationFlags::gradients);
-
-    values[p] = evaluator->get_gradient(0)[0];
-  }
 
   return values;
 }
@@ -347,9 +326,9 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   // used for evaluator to avoid running it anytime there is an eval
   cell_locator.rebuild(dof_handler, triangulation);
 
-  local_solution_buffer.resize(fe.n_dofs_per_cell());
-  evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
-                                                            update_gradients);
+  // local_solution_buffer.resize(fe.n_dofs_per_cell());
+  // evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
+  // update_gradients);
 }
 
 // Paul
@@ -402,9 +381,7 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   }
 }
 
-template <int dim>
-void PoissonProblem<dim>::coarse_and_refine_grid(
-    size_t it, std::vector<Vector<double>> &solution_history) {
+template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   std::cout << "Refinement Started" << "\n";
   Vector<float> error_per_cell(triangulation.n_active_cells());
 
@@ -417,28 +394,19 @@ void PoissonProblem<dim>::coarse_and_refine_grid(
                                                   0.3, 0.03);
 
   triangulation.prepare_coarsening_and_refinement();
+
   SolutionTransfer<dim, Vector<double>> transfer(dof_handler);
-  transfer.prepare_for_coarsening_and_refinement(solution_history);
+  const Vector<double> refined_solution = solution;
+
+  transfer.prepare_for_coarsening_and_refinement(refined_solution);
 
   triangulation.execute_coarsening_and_refinement();
 
   setup_system();
 
-  std::vector<Vector<double>> new_solution_history(solution_history.size());
-
-  for (auto &vec : new_solution_history)
-    vec.reinit(dof_handler.n_dofs());
-
-  transfer.interpolate(solution_history, new_solution_history);
-
-  solution_history.swap(new_solution_history);
-
-  solution = solution_history.back();
+  transfer.interpolate(refined_solution, solution);
 
   constraints.distribute(solution);
-
-  // cell_locator.rebuild(dof_handler, triangulation); // No need to be called
-  // again because its in setup_system();
 
   std::cout << "Refinement Finished" << "\n";
 

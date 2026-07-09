@@ -1,18 +1,20 @@
 #include "nufi/save_results.h"
 
 #include "nufi/fields.h"
+#include "nufi/grids.h"
 #include "nufi/nufi_solver.h"
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"
 #include <cstddef>
+#include <deal.II/numerics/solution_transfer.h>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 void save_f(const NuFISolver &solver, unsigned int n,
-            const PoissonProblem<1> &poisson,
-            const std::vector<Vector<double>> &phi_history, unsigned int Nx_out,
+            std::vector<GridStructure<1>> &grid_struct,
+            std::vector<SolutionSnapshot<1>> &phi_history, unsigned int Nx_out,
             unsigned int Nv_out, const std::string &filename) {
   std::ofstream file(filename);
 
@@ -33,7 +35,7 @@ void save_f(const NuFISolver &solver, unsigned int n,
 
   for (unsigned int j = 0; j < Nv_out; ++j) {
     double v = vmin + (j + 0.5) * dv;
-    val = solver.eval_f(n, x_eval, v, poisson, phi_history);
+    val = solver.eval_f(n, x_eval, v, grid_struct, phi_history);
 
     for (unsigned int i = 0; i < Nx_out; ++i) {
       file << val[i];
@@ -49,8 +51,8 @@ void save_f(const NuFISolver &solver, unsigned int n,
 }
 
 void save_rho(const NuFISolver &solver, unsigned int n,
-              const PoissonProblem<1> &poisson,
-              const std::vector<Vector<double>> &phi_history,
+              std::vector<GridStructure<1>> &grid_struct,
+              std::vector<SolutionSnapshot<1>> &phi_history,
               unsigned int Nx_out, const std::string &filename) {
   std::ofstream file(filename);
 
@@ -61,7 +63,8 @@ void save_rho(const NuFISolver &solver, unsigned int n,
   file << Nx_out << "\n";
   file << xmin << " " << xmax << "\n";
 
-  std::vector<double> tmp = solver.eval_rho(n, x_eval, poisson, phi_history);
+  std::vector<double> tmp =
+      solver.eval_rho(n, x_eval, grid_struct, phi_history);
   for (size_t i = 0; i < Nx_out; ++i) {
     file << tmp[i];
     file << "\n";
@@ -69,9 +72,8 @@ void save_rho(const NuFISolver &solver, unsigned int n,
   file.close();
 }
 
-void save_Efield([[maybe_unused]] unsigned int n,
-                 const PoissonProblem<1> &poisson,
-                 const std::vector<Vector<double>> &phi_history,
+void save_Efield([[maybe_unused]] unsigned int n, GridStructure<1> &grid_struct,
+                 std::vector<SolutionSnapshot<1>> &phi_history,
                  unsigned int Nx_out, const std::string &filename) {
   std::ofstream file(filename);
 
@@ -85,7 +87,7 @@ void save_Efield([[maybe_unused]] unsigned int n,
   file << Nx_out << "\n";
   file << xmin << " " << xmax << "\n";
 
-  std::vector<double> tmp = eval(x_eval, poisson, phi_history[n]);
+  std::vector<double> tmp = eval(x_eval, grid_struct, phi_history[n].solution);
   for (size_t i = 0; i < Nx_out; ++i) {
     file << -tmp[i];
     file << "\n";
