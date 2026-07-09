@@ -186,8 +186,8 @@ void NuFISolver::run() {
             << "plot_time"
             << "\n";
 
-  const double x_min = Parameters::X_DOMAIN_LEFT;
-  double dx = Parameters::CALC_DX;
+  [[maybe_unused]] const double x_min = Parameters::X_DOMAIN_LEFT;
+  [[maybe_unused]] double dx = Parameters::CALC_DX;
 
   //====//====//
   // Time loop//
@@ -222,21 +222,15 @@ void NuFISolver::run() {
 
     double compute_start = timer.elapsed();
     // compute rho
-    std::vector<double> x_eval = make_x_eval(Nx);
-    std::vector<double> tmp_rho =
+    std::vector<double> x_eval = make_x_eval(poisson.get_dof_size());
+    std::vector<double> rho_values =
         eval_rho(it, x_eval, poisson, phi_history, Parameters::NV);
 
-    for (size_t i = 0; i < Nx; i++) {
-      AssertThrow(std::isfinite(tmp_rho[i]), ExcMessage("NaN detected in rho"));
-      rho.get()[i] = tmp_rho[i];
-    }
+    Vector<double> rhs(x_eval.size());
+    for (unsigned int i = 0; i < rhs.size(); ++i)
+      rhs[i] = rho_values[i];
 
-    poisson.set_rhs_function([&rho, x_min, dx, Nx = Nx](const Point<1> &p) {
-      double x = p[0];
-      int i = static_cast<int>(std::floor((x - x_min) / dx));
-      i = (i % Nx + Nx) % Nx;
-      return rho.get()[i];
-    });
+    poisson.set_rhs(rhs);
 
     poisson.solve_step();
     phi_history.push_back(poisson.get_solution());
@@ -248,7 +242,8 @@ void NuFISolver::run() {
       poisson.coarse_and_refine_grid(it, phi_history);
       refine_time = timer.elapsed() - refine_start;
       std::cout << "Refinement step done in "
-                << std::to_string(std::floor(refine_time)) << "[s]" << "\n";
+                << std::to_string(std::round(std::floor(refine_time))) << "[s]"
+                << "\n";
     }
 
     double timer_elapsed = timer.elapsed();
@@ -266,6 +261,7 @@ void NuFISolver::run() {
       // std::to_string(it) + ".dat");
 
       std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
+      std::vector<double> tmp_rho(x_eval_Ex.size());
       tmp_rho = eval(x_eval_Ex, poisson, phi_history[it]);
 
       std::vector<double> E_x(Parameters::PLOT_NX);

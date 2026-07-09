@@ -70,7 +70,10 @@ public:
                               std::vector<Vector<double>> &solution_history);
   void run();
 
+  unsigned int get_rhs_size();
+  unsigned int get_dof_size();
   void set_rhs_function(std::function<double(const Point<dim> &)> f);
+  void set_rhs(const Vector<double> &new_rhs) { rhs = new_rhs; }
 
   const Vector<double> &get_solution() const { return solution; }
   const MappingQ<dim> &get_mapping() const { return mapping; }
@@ -89,6 +92,7 @@ public:
 
   Triangulation<dim> triangulation;
   DoFHandler<dim> dof_handler;
+  CellLocator<dim> cell_locator;
 
 private:
   void create_mesh();
@@ -109,11 +113,9 @@ private:
   Vector<double> system_rhs;
 
   std::function<double(const Point<dim> &)> rhs_function;
+  Vector<double> rhs;
 
   MappingQ<dim> mapping;
-
-  CellLocator<dim> cell_locator;
-  // std::vector<typename DoFHandler<dim>::active_cell_iterator> active_cells;
 
   mutable std::vector<double> local_solution_buffer;
   mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
@@ -123,11 +125,21 @@ private:
 // Utilities
 //====//====//
 
-template <int dim>
-void PoissonProblem<dim>::set_rhs_function(
-    std::function<double(const Point<dim> &)> f) {
-  rhs_function = std::move(f);
+template <int dim> unsigned int PoissonProblem<dim>::get_rhs_size() {
+
+  QGauss<dim> quadrature_formula(fe.degree + 1);
+  return quadrature_formula.size();
 }
+
+template <int dim> unsigned int PoissonProblem<dim>::get_dof_size() {
+  return dof_handler.n_dofs();
+}
+
+// template <int dim>
+// void PoissonProblem<dim>::set_rhs_function(
+//     std::function<double(const Point<dim> &)> f) {
+//   rhs_function = std::move(f);
+// }
 
 template <int dim>
 PoissonProblem<dim>::PoissonProblem(unsigned int degree)
@@ -358,15 +370,19 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   Vector<double> cell_rhs(dofs_per_cell);
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
+  std::vector<double> rhs_values(quadrature_formula.size());
+
   for (const auto &cell : dof_handler.active_cell_iterators()) {
     fe_values.reinit(cell);
 
     cell_matrix = 0;
     cell_rhs = 0;
 
+    fe_values.get_function_values(rhs, rhs_values);
+
     for (const auto q : fe_values.quadrature_point_indices()) {
-      const double rho = rhs_function(
-          fe_values.quadrature_point(q)); // Eval rhs_function at q points
+      // const double rho = rhs_function(
+      //     fe_values.quadrature_point(q)); // Eval rhs_function at q points
 
       for (const unsigned int i : fe_values.dof_indices())
         for (const unsigned int j : fe_values.dof_indices())
@@ -374,7 +390,9 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
                                fe_values.shape_grad(j, q) * fe_values.JxW(q);
 
       for (const unsigned int i : fe_values.dof_indices())
-        cell_rhs(i) += fe_values.shape_value(i, q) * rho * fe_values.JxW(q);
+        // cell_rhs(i) += fe_values.shape_value(i, q) * rho * fe_values.JxW(q);
+        cell_rhs(i) +=
+            fe_values.shape_value(i, q) * rhs_values[q] * fe_values.JxW(q);
     }
 
     cell->get_dof_indices(local_dof_indices);
@@ -433,7 +451,8 @@ void PoissonProblem<dim>::coarse_and_refine_grid(
 template <int dim> void PoissonProblem<dim>::solve() {
 
   SolverControl solver_control(Parameters::CONVERGENCE_ITERATIONS,
-                               Parameters::CONVERGENCE_LIMIT);
+                               Parameters::CONVERGENCE_LIMIT *
+                                   system_rhs.l2_norm());
   SolverCG<Vector<double>> solver(solver_control);
 
   // PreconditionSSOR<SparseMatrix<double>> preconditioner;

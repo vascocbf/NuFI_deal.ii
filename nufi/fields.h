@@ -61,15 +61,17 @@ using namespace dealii;
 // }
 inline std::vector<double> make_x_eval(size_t Nx) {
   std::vector<double> x_eval(Nx);
+  const double dx = Parameters::LX / Nx;
   for (size_t i = 0; i < Nx; ++i)
-    x_eval[i] = Parameters::X_DOMAIN_LEFT + i * Parameters::CALC_DX;
+    x_eval[i] = Parameters::X_DOMAIN_LEFT + i * dx;
   return x_eval;
 }
 
 inline void reset_x_eval(std::vector<double> &x_vals) {
   const size_t Nx = x_vals.size();
+  const double dx = Parameters::LX / Nx;
   for (size_t i = 0; i < Nx; ++i)
-    x_vals[i] = Parameters::X_DOMAIN_LEFT + i * Parameters::CALC_DX;
+    x_vals[i] = Parameters::X_DOMAIN_LEFT + i * dx;
 };
 
 inline double f0(const double x, const double v,
@@ -131,5 +133,16 @@ inline double integral_space_vector_squared(const PoissonProblem<1> &poisson,
     integral += tmp[i] * tmp[i];
   return integral * dx;
 };
+
+inline std::vector<double>
+Point_vector_to_double_vector(const std::vector<Point<1>> &Points) {
+  const size_t n_points = Points.size();
+  std::vector<double> vector(n_points);
+
+  for (size_t i = 0; i < n_points; ++i)
+    vector[i] = Points[i][0];
+
+  return vector;
+}
 
 #endif

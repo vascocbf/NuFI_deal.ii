@@ -2,6 +2,7 @@
 #define CELLS_H
 
 #include <algorithm>
+#include <boost/geometry/geometries/concepts/point_concept.hpp>
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/point.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -32,8 +33,11 @@ public:
                const Triangulation<dim> &triangulation);
   CellLocation<dim> locate(const Point<dim> &p) const;
 
+  const std::vector<Point<dim>> &get_cell_centers() const;
+
 private:
   std::vector<CellInfo<dim>> cells;
+  std::vector<Point<dim>> cell_centers;
 };
 
 template <int dim>
@@ -59,6 +63,17 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
             [](const CellInfo<dim> &a, const CellInfo<dim> &b) {
               return a.lower[0] < b.lower[0];
             });
+
+  cell_centers.clear();
+  cell_centers.reserve(cells.size());
+
+  for (const auto &cell : cells) {
+    Point<dim> center;
+    for (unsigned int d = 0; d < dim; ++d)
+      center[d] = 0.5 * (cell.lower[d] + cell.upper[d]);
+
+    cell_centers.push_back(center);
+  }
 }
 
 template <int dim>
@@ -91,6 +106,11 @@ CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
   location.reference_point[0] = (p[0] - it->lower[0]) / it->h;
 
   return location;
+}
+
+template <int dim>
+const std::vector<Point<dim>> &CellLocator<dim>::get_cell_centers() const {
+  return cell_centers;
 }
 
 #endif // !CELLS_H
