@@ -8,7 +8,8 @@ This simulation of the Vlasov-Poisson system in 1x1v dimensions uses
 status:
 
 Fail
-
+ 
+Initial E = 0 constant....
 
 last sim:
 
