@@ -73,8 +73,9 @@ public:
 
   unsigned int get_rhs_size();
   unsigned int get_dof_size();
-  void set_rhs_function(std::function<double(const Point<dim> &)> f);
-  void set_rhs(const Vector<double> &new_rhs) { rhs = new_rhs; }
+  void set_rhs_function(
+      std::function<std::vector<double>(const std::vector<Point<dim>> &)> f);
+  // void set_rhs(const Vector<double> &new_rhs) { rhs = new_rhs; }
 
   const Vector<double> &get_solution() const { return solution; }
   const MappingQ<dim> &get_mapping() const { return mapping; }
@@ -116,8 +117,9 @@ private:
   Vector<double> solution; // phi
   Vector<double> system_rhs;
 
-  std::function<double(const Point<dim> &)> rhs_function;
-  Vector<double> rhs;
+  std::function<std::vector<double>(const std::vector<Point<dim>> &)>
+      rhs_function;
+  // Vector<double> rhs;
 
   MappingQ<dim> mapping;
 
@@ -139,11 +141,11 @@ template <int dim> unsigned int PoissonProblem<dim>::get_dof_size() {
   return dof_handler.n_dofs();
 }
 
-// template <int dim>
-// void PoissonProblem<dim>::set_rhs_function(
-//     std::function<double(const Point<dim> &)> f) {
-//   rhs_function = std::move(f);
-// }
+template <int dim>
+void PoissonProblem<dim>::set_rhs_function(
+    std::function<std::vector<double>(const std::vector<Point<dim>> &)> f) {
+  rhs_function = std::move(f);
+}
 
 template <int dim>
 PoissonProblem<dim>::PoissonProblem(unsigned int degree)
@@ -331,14 +333,14 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   // update_gradients);
 }
 
-// Paul
 template <int dim> void PoissonProblem<dim>::assemble_system() {
+
   Assert(system_matrix.m() == dof_handler.n_dofs(),
          ExcMessage("Matrix not initialized correctly"));
   system_matrix = 0;
   system_rhs = 0;
 
-  QGauss<dim> quadrature_formula(fe.degree + 1);
+  const QGauss<dim> quadrature_formula(fe.degree + 1);
   FEValues<dim> fe_values(fe, quadrature_formula,
                           update_values | update_gradients |
                               update_quadrature_points | update_JxW_values);
@@ -347,32 +349,49 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
 
   FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
   Vector<double> cell_rhs(dofs_per_cell);
+
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-  std::vector<double> rhs_values(quadrature_formula.size());
+  // Eval rhs_function only once for all quadrature points
+  const unsigned int n_q_points = quadrature_formula.size();
+  std::vector<Point<dim>> all_q_points;
+  all_q_points.reserve(triangulation.n_active_cells() * n_q_points);
 
+  for (const auto &cell : dof_handler.active_cell_iterators()) {
+    fe_values.reinit(cell);
+    const auto &q_points = fe_values.get_quadrature_points();
+    all_q_points.insert(all_q_points.end(), q_points.begin(), q_points.end());
+  }
+
+  Assert(rhs_function,
+         ExcMessage("Poisson RHS function has not been initialized."));
+
+  std::vector<double> all_rho = rhs_function(all_q_points);
+
+  Assert(all_rho.size() == all_q_points.size(),
+         ExcMessage("rhs_function returned wrong size"));
+
+  // assemble system
+  unsigned int q_offset = 0;
   for (const auto &cell : dof_handler.active_cell_iterators()) {
     fe_values.reinit(cell);
 
     cell_matrix = 0;
     cell_rhs = 0;
 
-    fe_values.get_function_values(rhs, rhs_values);
+    for (size_t q = 0; q < n_q_points; ++q) {
 
-    for (const auto q : fe_values.quadrature_point_indices()) {
-      // const double rho = rhs_function(
-      //     fe_values.quadrature_point(q)); // Eval rhs_function at q points
-
-      for (const unsigned int i : fe_values.dof_indices())
-        for (const unsigned int j : fe_values.dof_indices())
+      for (const unsigned int i : fe_values.dof_indices()) {
+        for (const unsigned int j : fe_values.dof_indices()) {
           cell_matrix(i, j) += fe_values.shape_grad(i, q) *
                                fe_values.shape_grad(j, q) * fe_values.JxW(q);
+        }
 
-      for (const unsigned int i : fe_values.dof_indices())
-        // cell_rhs(i) += fe_values.shape_value(i, q) * rho * fe_values.JxW(q);
-        cell_rhs(i) +=
-            fe_values.shape_value(i, q) * rhs_values[q] * fe_values.JxW(q);
+        cell_rhs(i) += fe_values.shape_value(i, q) * all_rho[q_offset + q] *
+                       fe_values.JxW(q);
+      }
     }
+    q_offset += n_q_points;
 
     cell->get_dof_indices(local_dof_indices);
 

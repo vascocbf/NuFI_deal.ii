@@ -158,6 +158,15 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
   return integral;
 }
 
+std::vector<double>
+NuFISolver::eval_rho_points(unsigned int n, const std::vector<Point<1>> &points,
+                            const std::vector<GridStructure<1>> &grid_struct,
+                            const std::vector<SolutionSnapshot<1>> &phi_history,
+                            const unsigned int Nv) const {
+  std::vector<double> point_vector = Point_vector_to_double_vector(points);
+  return NuFISolver::eval_rho(n, point_vector, grid_struct, phi_history, Nv);
+}
+
 void NuFISolver::run() {
 
   //====//====//
@@ -167,12 +176,13 @@ void NuFISolver::run() {
   using std::abs;
   using std::max;
 
-  std::unique_ptr<double, decltype(std::free) *> rho{
-      reinterpret_cast<double *>(std::aligned_alloc(64, sizeof(double) * Nx)),
-      std::free};
-
-  if (rho == nullptr)
-    throw std::bad_alloc{};
+  // std::unique_ptr<double, decltype(std::free) *> rho{
+  //     reinterpret_cast<double *>(std::aligned_alloc(64, sizeof(double) *
+  //     Nx)),
+  // std::free};
+  //
+  // if (rho == nullptr)
+  //   throw std::bad_alloc{};
 
   std::vector<double> int_E_squared;
   int_E_squared.reserve(Nt);
@@ -234,15 +244,15 @@ void NuFISolver::run() {
 
     double compute_start = timer.elapsed();
     // compute rho
-    std::vector<double> x_eval = make_x_eval(poisson.get_dof_size());
-    std::vector<double> rho_values =
-        eval_rho(it, x_eval, grid_versions, phi_history, Parameters::NV);
+    //
+    poisson.set_rhs_function([&](const std::vector<Point<1>> &points) {
+      std::vector<double> x(points.size());
 
-    Vector<double> rhs(x_eval.size());
-    for (unsigned int i = 0; i < rhs.size(); ++i)
-      rhs[i] = rho_values[i];
+      for (size_t i = 0; i < points.size(); ++i)
+        x[i] = points[i][0];
 
-    poisson.set_rhs(rhs);
+      return eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
+    });
 
     poisson.solve_step();
 
