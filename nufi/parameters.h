@@ -35,10 +35,10 @@ constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 // NUFI options
 constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
-constexpr unsigned int REFINE_FREQUENCY = 10;
+constexpr unsigned int REFINE_FREQUENCY = 3;
 
 // Plotting options
-constexpr int PLOT_FREQUENCY = 10;
+constexpr int PLOT_FREQUENCY = 1;
 constexpr size_t PLOT_NX = CALC_NX;
 constexpr double PLOT_DX = LX / PLOT_NX;
 const std::string PLOT_DIR = "results/";

@@ -2,11 +2,13 @@
 #define GRIDS_H
 
 #include "nufi/cells.h"
+#include <deal.II/base/exceptions.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/matrix_free/fe_point_evaluation.h>
+#include <deal.II/numerics/vector_tools.h>
 #include <memory>
 #include <vector>
 
@@ -25,7 +27,7 @@ template <int dim> struct GridStructure {
 
   CellLocator<dim> locator;
 
-  unsigned int grid_version;
+  unsigned int grid_version = 0;
 
   // === // === //
   // Evaluator  //
@@ -35,48 +37,67 @@ template <int dim> struct GridStructure {
                    const std::vector<Point<dim>> &points) const {
 
     std::vector<double> values(points.size());
-#pragma omp parallel
-    {
-      std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
-      FEPointEvaluation<dim, dim> evaluator(*mapping, *fe, update_gradients);
-#pragma omp for
-      for (unsigned int p = 0; p < points.size(); ++p) {
 
-        const auto cell_location = locator.locate(points[p]);
+#pragma omp parallel for
+    for (unsigned int p = 0; p < points.size(); ++p) {
 
-        cell_location.info->cell->get_dof_values(solution,
-                                                 local_solution_buffer.begin(),
-                                                 local_solution_buffer.end());
+      const Tensor<1, dim> grad_phi = VectorTools::point_gradient(
+          *mapping, *dof_handler, solution, points[p]);
 
-        evaluator.reinit(
-            cell_location.info->cell,
-            ArrayView<const Point<dim>>(&cell_location.reference_point, 1));
-
-        evaluator.evaluate(local_solution_buffer, EvaluationFlags::gradients);
-
-        values[p] = evaluator.get_gradient(0)[0];
-      }
+      values[p] = grad_phi[0];
     }
+
     return values;
   }
+  // #pragma omp parallel
+  //     {
+  //       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
+  //       FEPointEvaluation<dim, dim> evaluator(*mapping, *fe,
+  //       update_gradients);
+  // #pragma omp for
+  //       for (unsigned int p = 0; p < points.size(); ++p) {
+  //
+  //         const auto cell_location = locator.locate(points[p]);
+  //
+  //         cell_location.info->cell->get_dof_values(solution,
+  //                                                  local_solution_buffer.begin(),
+  //                                                  local_solution_buffer.end());
+  //
+  //         evaluator.reinit(
+  //             cell_location.info->cell,
+  //             ArrayView<const Point<dim>>(&cell_location.reference_point,
+  //             1));
+  //
+  //         evaluator.evaluate(local_solution_buffer,
+  //         EvaluationFlags::gradients);
+  //
+  //         values[p] = evaluator.get_gradient(0)[0];
+  //       }
+  //     }
+  //     AssertThrow(dof_handler->n_dofs() == solution.size(),
+  //                 ExcMessage("Solution vector size does not match
+  //                 DoFHandler."));
+  //     return values;
+  //   }
 };
 
 template <int dim>
 GridStructure<dim> make_grid_snapshot(const PoissonProblem<dim> &poisson) {
   GridStructure<dim> grid;
-  grid.grid_version = 0;
 
   grid.triangulation = std::make_unique<Triangulation<dim>>();
+
   grid.triangulation->copy_triangulation(poisson.get_triangulation());
+
+  grid.fe = std::make_unique<FE_Q<dim>>(poisson.get_fe());
+
+  grid.dof_handler = std::make_unique<DoFHandler<dim>>(*grid.triangulation);
+
+  grid.dof_handler->distribute_dofs(*grid.fe);
 
   grid.mapping = std::make_unique<MappingQ<dim>>(poisson.get_mapping());
 
-  grid.dof_handler = std::make_unique<DoFHandler<dim>>(*grid.triangulation);
-  grid.dof_handler->distribute_dofs(poisson.get_dof_handler().get_fe());
-
   grid.locator.rebuild(*grid.dof_handler, *grid.triangulation);
-
-  grid.fe = std::make_unique<FE_Q<dim>>(poisson.get_fe());
 
   return grid;
 }

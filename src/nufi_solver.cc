@@ -191,8 +191,8 @@ void NuFISolver::run() {
   std::vector<SolutionSnapshot<1>> phi_history;
 
   update_grid_versions(grid_versions, poisson);
-  update_solution_history(phi_history, poisson,
-                          grid_versions.back().grid_version);
+  // update_solution_history(phi_history, poisson,
+  //                         grid_versions.back().grid_version);
 
   std::vector<double> x_eval(Parameters::CALC_NX);
 
@@ -239,7 +239,21 @@ void NuFISolver::run() {
     // }
     //
     // std::cout << "h ratio = " << max_h / min_h << std::endl;
-
+    // std::vector<double> x = make_x_eval(Parameters::CALC_NX);
+    // auto rho = eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
+    //
+    // double mean = 0;
+    //
+    // for (auto r : rho)
+    //   mean += r;
+    //
+    // mean /= rho.size();
+    //
+    // std::cout << "rho mean = " << mean << "\n";
+    // std::cout << "rho min = " << *std::min_element(rho.begin(), rho.end())
+    //           << "\n";
+    // std::cout << "rho max = " << *std::max_element(rho.begin(), rho.end())
+    //           << "\n";
     // END: diagnostics
 
     double compute_start = timer.elapsed();
@@ -277,24 +291,27 @@ void NuFISolver::run() {
     double step_time = timer_elapsed - time_elapsed_before;
 
     std::cout << "step made in " << step_time << " seconds\n\n";
+
+    //====//====//
+    // Plotting //
+    //====//====//
     if (it % Parameters::PLOT_FREQUENCY == 0) {
       double plot_start = timer.elapsed();
+
       std::cout << "Saving results...   ";
       save_f(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
              Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
       save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
                "results/rho_" + std::to_string(it) + ".dat");
-      // save_Efield(it, coeffs.get(), 128, "results/field_" +
-      // std::to_string(it) + ".dat");
 
       std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
-      std::vector<double> tmp_rho(x_eval_Ex.size());
-      tmp_rho = eval(x_eval_Ex, grid_versions[phi_history[it].grid_version],
-                     phi_history[it].solution);
+      std::vector<double> tmp_Ex(x_eval_Ex.size());
+      tmp_Ex = eval(x_eval_Ex, grid_versions[phi_history[it].grid_version],
+                    phi_history[it].solution);
 
       std::vector<double> E_x(Parameters::PLOT_NX);
       for (size_t i = 0; i < Parameters::PLOT_NX; ++i)
-        E_x[i] = -tmp_rho[i];
+        E_x[i] = -tmp_Ex[i];
       save_space_vector(E_x, "field", it);
 
       double int_val = 0.5 * integral_space_vector_squared(
