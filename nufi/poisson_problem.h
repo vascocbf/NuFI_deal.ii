@@ -56,7 +56,11 @@
 #include "nufi/cells.h"
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
+#include "nufi/save_results.h"
 #include "omp.h"
+
+void save_space_vector(const std::vector<double> &vals,
+                       const std::string &filename, size_t it);
 
 using namespace dealii;
 
@@ -431,6 +435,13 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 
   std::string grid_file_name =
       Parameters::PLOT_DIR + "grid_" + std::to_string(it);
+
+  // std::vector<double> Ex =
+  // sample_electric_potential(Parameters::X_DOMAIN_LEFT,
+  //                                                    Parameters::X_DOMAIN_RIGHT,
+  //                                                    Parameters::PLOT_NX);
+  //
+  // save_space_vector(Ex, "Ex_after_coarsed", it);
 
   save_grid_to_file(grid_file_name);
 }

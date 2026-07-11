@@ -35,7 +35,7 @@ constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 // NUFI options
 constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
-constexpr unsigned int REFINE_FREQUENCY = 3;
+constexpr unsigned int REFINE_FREQUENCY = 1;
 
 // Plotting options
 constexpr int PLOT_FREQUENCY = 1;

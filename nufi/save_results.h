@@ -2,11 +2,12 @@
 #define SAVE_RESULTS_H
 
 #include "nufi/grids.h"
-#include "nufi/nufi_solver.h"
 #include "nufi/poisson_problem.h"
 #include <deal.II/lac/vector.h>
 #include <string>
 #include <vector>
+
+class NuFISolver;
 
 void save_f(const NuFISolver &solver, unsigned int n,
             std::vector<GridStructure<1>> &grid_struct,

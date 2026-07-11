@@ -4,6 +4,7 @@
 #include <boost/qvm/mat_access.hpp>
 #include <cmath>
 #include <cstdlib>
+#include <deal.II/base/exceptions.h>
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -48,6 +49,15 @@ std::vector<double> NuFISolver::eval_ftilda(
   while (--n) {
     for (size_t i = 0; i < x_size; ++i)
       X[i] = X[i] - Parameters::DT * U[i];
+
+    AssertThrow(
+        phi_history[n].solution.size() ==
+            grid_struct[phi_history[n].grid_version].dof_handler->n_dofs(),
+        ExcMessage("In eval_ftilda: Solution size = " +
+                   std::to_string(phi_history[n].solution.size()) +
+                   ", expected by grid_struct = " +
+                   std::to_string(grid_struct[phi_history[n].grid_version]
+                                      .dof_handler->n_dofs())));
 
     tmp = eval(X, grid_struct[phi_history[n].grid_version],
                phi_history[n].solution); // call eval only once
