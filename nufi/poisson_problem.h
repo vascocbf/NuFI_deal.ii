@@ -106,6 +106,8 @@ public:
 private:
   void create_mesh();
   void setup_system();
+  void setup_system_in_refinement_before_interpolating();
+  void setup_system_in_refinement_after_interpolating();
   void assemble_system();
   void solve();
 
@@ -337,6 +339,55 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   // update_gradients);
 }
 
+template <int dim>
+void PoissonProblem<dim>::setup_system_in_refinement_before_interpolating() {
+  dof_handler.distribute_dofs(fe);
+
+  constraints.clear();
+
+  DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+
+  DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
+
+  // Do NOT close the constraints yet.
+  // The gauge will be added after interpolation.
+
+  solution.reinit(dof_handler.n_dofs());
+  system_rhs.reinit(dof_handler.n_dofs());
+
+  cell_locator.rebuild(dof_handler, triangulation);
+}
+
+template <int dim>
+void PoissonProblem<dim>::setup_system_in_refinement_after_interpolating() {
+
+  // Add the gauge constraint.
+  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
+
+  for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i) {
+    if (!constraints.is_constrained(i)) {
+      gauge_dof = i;
+      break;
+    }
+  }
+
+  Assert(gauge_dof != numbers::invalid_dof_index,
+         ExcMessage("No unconstrained DoF found for gauge fixing."));
+
+  constraints.add_line(gauge_dof);
+  constraints.set_inhomogeneity(gauge_dof, 0.0);
+
+  constraints.close();
+
+  DynamicSparsityPattern dsp(dof_handler.n_dofs());
+
+  DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
+
+  sparsity_pattern.copy_from(dsp);
+
+  system_matrix.reinit(sparsity_pattern);
+}
+
 template <int dim> void PoissonProblem<dim>::assemble_system() {
 
   Assert(system_matrix.m() == dof_handler.n_dofs(),
@@ -406,13 +457,12 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
 
 template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   std::cout << "Refinement Started" << "\n";
-  Vector<float> error_per_cell(triangulation.n_active_cells());
 
+  Vector<float> error_per_cell(triangulation.n_active_cells());
   KellyErrorEstimator<dim>::estimate(
       dof_handler, QGauss<dim - 1>(fe.degree + 1),
       std::map<types::boundary_id, const Function<dim> *>(), solution,
       error_per_cell);
-
   GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
                                                   0.3, 0.03);
 
@@ -425,9 +475,11 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 
   triangulation.execute_coarsening_and_refinement();
 
-  setup_system();
+  setup_system_in_refinement_before_interpolating();
 
   transfer.interpolate(refined_solution, solution);
+
+  setup_system_in_refinement_after_interpolating();
 
   constraints.distribute(solution);
 
@@ -435,6 +487,7 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 
   std::string grid_file_name =
       Parameters::PLOT_DIR + "grid_" + std::to_string(it);
+  save_grid_to_file(grid_file_name);
 
   // std::vector<double> Ex =
   // sample_electric_potential(Parameters::X_DOMAIN_LEFT,
@@ -442,8 +495,6 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   //                                                    Parameters::PLOT_NX);
   //
   // save_space_vector(Ex, "Ex_after_coarsed", it);
-
-  save_grid_to_file(grid_file_name);
 }
 
 template <int dim> void PoissonProblem<dim>::solve() {
