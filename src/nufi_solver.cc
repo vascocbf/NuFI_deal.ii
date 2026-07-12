@@ -285,14 +285,15 @@ void NuFISolver::run() {
     if (it % Parameters::REFINE_FREQUENCY == 0 && it != 0) {
       double refine_start = timer.elapsed();
 
-      poisson.coarse_and_refine_grid(it);
-
-      update_grid_versions(grid_versions, poisson);
-
-      refine_time = timer.elapsed() - refine_start;
-      std::cout << "Refinement step done in "
-                << std::to_string(std::round(std::floor(refine_time))) << "[s]"
-                << "\n";
+      // poisson.coarse_and_refine_grid(it);
+      //
+      // update_grid_versions(grid_versions, poisson);
+      //
+      // refine_time = timer.elapsed() - refine_start;
+      // std::cout << "Refinement step done in "
+      //           << std::to_string(std::round(std::floor(refine_time))) <<
+      //           "[s]"
+      //           << "\n";
     }
     update_solution_history(phi_history, poisson,
                             grid_versions.back().grid_version);
