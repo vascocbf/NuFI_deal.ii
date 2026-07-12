@@ -21,6 +21,11 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/vector.h>
 
+#include <deal.II/lac/block_sparse_matrix.h>
+#include <deal.II/lac/block_sparsity_pattern.h>
+#include <deal.II/lac/block_vector.h>
+#include <deal.II/lac/solver_gmres.h>
+
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/grid_refinement.h>
@@ -79,7 +84,7 @@ public:
       std::function<std::vector<double>(const std::vector<Point<dim>> &)> f);
   // void set_rhs(const Vector<double> &new_rhs) { rhs = new_rhs; }
 
-  const Vector<double> &get_solution() const { return solution; }
+  const Vector<double> &get_solution() const { return solution.block(0); }
   const MappingQ<dim> &get_mapping() const { return mapping; }
   const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
   const Triangulation<dim> &get_triangulation() const { return triangulation; }
@@ -104,8 +109,6 @@ public:
 private:
   void create_mesh();
   void setup_system();
-  void setup_system_in_refinement_before_interpolating();
-  void setup_system_in_refinement_after_interpolating();
   void assemble_system();
   void solve();
 
@@ -115,11 +118,12 @@ private:
 
   AffineConstraints<double> constraints;
 
-  SparsityPattern sparsity_pattern;
-  SparseMatrix<double> system_matrix;
+  BlockSparseMatrix<double> system_matrix;
 
-  Vector<double> solution; // phi
-  Vector<double> system_rhs;
+  BlockVector<double> solution;
+  BlockVector<double> system_rhs;
+
+  BlockSparsityPattern sparsity_pattern;
 
   std::function<std::vector<double>(const std::vector<Point<dim>> &)>
       rhs_function;
@@ -291,7 +295,6 @@ template <int dim> void PoissonProblem<dim>::create_mesh() {
 }
 
 template <int dim> void PoissonProblem<dim>::setup_system() {
-
   dof_handler.distribute_dofs(fe);
 
   constraints.clear();
@@ -300,142 +303,102 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
 
   DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
 
-  // Gauge fix for periodic Poisson:
-  // remove the constant nullspace by pinning one unconstrained DoF.
-  // (by Paul Wilhelm)
-  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
-
-  for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i) {
-    if (!constraints.is_constrained(i)) {
-      gauge_dof = i;
-      break;
-    }
-  }
-
-  Assert(gauge_dof != numbers::invalid_dof_index,
-         ExcMessage("No unconstrained DoF found for gauge fixing."));
-
-  constraints.add_line(gauge_dof);
-  constraints.set_inhomogeneity(gauge_dof, 0.0);
-
   constraints.close();
 
-  DynamicSparsityPattern dsp(dof_handler.n_dofs());
-  DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
+  std::vector<types::global_dof_index> dofs_per_block(2);
+
+  dofs_per_block[0] = dof_handler.n_dofs();
+  dofs_per_block[1] = 1;
+
+  BlockDynamicSparsityPattern dsp(dofs_per_block, dofs_per_block);
+
+  dsp.block(0, 0).reinit(dof_handler.n_dofs(), dof_handler.n_dofs());
+
+  dsp.block(0, 1).reinit(dof_handler.n_dofs(), 1);
+
+  dsp.block(1, 0).reinit(1, dof_handler.n_dofs());
+
+  dsp.block(1, 1).reinit(1, 1);
+
+  dsp.collect_sizes();
+
+  DoFTools::make_sparsity_pattern(dof_handler, dsp.block(0, 0), constraints,
+                                  false);
+
+  // dense column m
+  for (unsigned int i = 0; i < dof_handler.n_dofs(); ++i) {
+    dsp.block(0, 1).add(i, 0);
+    dsp.block(1, 0).add(0, i);
+  }
+
   sparsity_pattern.copy_from(dsp);
 
   system_matrix.reinit(sparsity_pattern);
 
-  solution.reinit(dof_handler.n_dofs());
-  system_rhs.reinit(dof_handler.n_dofs());
-
-  // used for evaluator to avoid running it anytime there is an eval
-  cell_locator.rebuild(dof_handler, triangulation);
-
-  // local_solution_buffer.resize(fe.n_dofs_per_cell());
-  // evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
-  // update_gradients);
-}
-
-template <int dim>
-void PoissonProblem<dim>::setup_system_in_refinement_before_interpolating() {
-  dof_handler.distribute_dofs(fe);
-
-  constraints.clear();
-
-  DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-
-  DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
-
-  // Do NOT close the constraints yet.
-  // The gauge will be added after interpolation.
-
-  solution.reinit(dof_handler.n_dofs());
-  system_rhs.reinit(dof_handler.n_dofs());
-
-  cell_locator.rebuild(dof_handler, triangulation);
-}
-
-template <int dim>
-void PoissonProblem<dim>::setup_system_in_refinement_after_interpolating() {
-
-  // Add the gauge constraint.
-  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
-
-  for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i) {
-    if (!constraints.is_constrained(i)) {
-      gauge_dof = i;
-      break;
-    }
-  }
-
-  Assert(gauge_dof != numbers::invalid_dof_index,
-         ExcMessage("No unconstrained DoF found for gauge fixing."));
-
-  constraints.add_line(gauge_dof);
-  constraints.set_inhomogeneity(gauge_dof, 0.0);
-
-  constraints.close();
-
-  DynamicSparsityPattern dsp(dof_handler.n_dofs());
-
-  DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
-
-  sparsity_pattern.copy_from(dsp);
-
-  system_matrix.reinit(sparsity_pattern);
+  solution.reinit(dofs_per_block);
+  system_rhs.reinit(dofs_per_block);
 }
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
-
-  Assert(system_matrix.m() == dof_handler.n_dofs(),
-         ExcMessage("Matrix not initialized correctly"));
   system_matrix = 0;
   system_rhs = 0;
 
   const QGauss<dim> quadrature_formula(fe.degree + 1);
+
   FEValues<dim> fe_values(fe, quadrature_formula,
                           update_values | update_gradients |
                               update_quadrature_points | update_JxW_values);
 
   const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
+  const unsigned int n_q_points = quadrature_formula.size();
 
   FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+
   Vector<double> cell_rhs(dofs_per_cell);
 
   std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-  // Eval rhs_function only once for all quadrature points
-  const unsigned int n_q_points = quadrature_formula.size();
+  /*
+   * First evaluate rho on all quadrature points.
+   * Same strategy as your original implementation.
+   */
+
   std::vector<Point<dim>> all_q_points;
+
   all_q_points.reserve(triangulation.n_active_cells() * n_q_points);
 
   for (const auto &cell : dof_handler.active_cell_iterators()) {
     fe_values.reinit(cell);
-    const auto &q_points = fe_values.get_quadrature_points();
-    all_q_points.insert(all_q_points.end(), q_points.begin(), q_points.end());
+
+    const auto &points = fe_values.get_quadrature_points();
+
+    all_q_points.insert(all_q_points.end(), points.begin(), points.end());
   }
 
-  Assert(rhs_function,
-         ExcMessage("Poisson RHS function has not been initialized."));
+  Assert(rhs_function, ExcMessage("Poisson RHS function not initialized"));
 
   std::vector<double> all_rho = rhs_function(all_q_points);
 
   Assert(all_rho.size() == all_q_points.size(),
          ExcMessage("rhs_function returned wrong size"));
 
-  // assemble system
   unsigned int q_offset = 0;
+
+  // Assemble A and RHS
+
   for (const auto &cell : dof_handler.active_cell_iterators()) {
+
     fe_values.reinit(cell);
 
     cell_matrix = 0;
     cell_rhs = 0;
 
-    for (size_t q = 0; q < n_q_points; ++q) {
+    for (unsigned int q = 0; q < n_q_points; ++q) {
 
-      for (const unsigned int i : fe_values.dof_indices()) {
-        for (const unsigned int j : fe_values.dof_indices()) {
+      for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+
+        for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+
           cell_matrix(i, j) += fe_values.shape_grad(i, q) *
                                fe_values.shape_grad(j, q) * fe_values.JxW(q);
         }
@@ -444,12 +407,48 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
                        fe_values.JxW(q);
       }
     }
+
     q_offset += n_q_points;
 
     cell->get_dof_indices(local_dof_indices);
 
+    /*
+     * Put the local stiffness matrix
+     * into block (0,0)
+     */
+
     constraints.distribute_local_to_global(
-        cell_matrix, cell_rhs, local_dof_indices, system_matrix, system_rhs);
+        cell_matrix, cell_rhs, local_dof_indices, system_matrix.block(0, 0),
+        system_rhs.block(0));
+  }
+
+  /*
+   * Assemble mean(phi)=0 constraint:
+   * m_i = integral(phi_i dx)
+   * Add:
+   * [ A  m ]
+   * [mT 0 ]
+   */
+
+  for (const auto &cell : dof_handler.active_cell_iterators()) {
+
+    fe_values.reinit(cell);
+
+    cell->get_dof_indices(local_dof_indices);
+
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+
+      for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+
+        const double value = fe_values.shape_value(i, q) * fe_values.JxW(q);
+
+        const auto global_i = local_dof_indices[i];
+
+        system_matrix.block(0, 1).add(global_i, 0, value);
+
+        system_matrix.block(1, 0).add(0, global_i, value);
+      }
+    }
   }
 }
 
@@ -459,7 +458,7 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   Vector<float> error_per_cell(triangulation.n_active_cells());
   KellyErrorEstimator<dim>::estimate(
       dof_handler, QGauss<dim - 1>(fe.degree + 1),
-      std::map<types::boundary_id, const Function<dim> *>(), solution,
+      std::map<types::boundary_id, const Function<dim> *>(), solution.block(0),
       error_per_cell);
   GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
                                                   0.3, 0.03);
@@ -467,20 +466,19 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   triangulation.prepare_coarsening_and_refinement();
 
   SolutionTransfer<dim, Vector<double>> transfer(dof_handler);
-  const Vector<double> refined_solution = solution;
+  const Vector<double> refined_solution = solution.block(0);
 
   transfer.prepare_for_coarsening_and_refinement(refined_solution);
 
   triangulation.execute_coarsening_and_refinement();
 
   setup_system();
-  // setup_system_in_refinement_before_interpolating();
 
-  transfer.interpolate(refined_solution, solution);
+  transfer.interpolate(refined_solution, solution.block(0));
 
-  // setup_system_in_refinement_after_interpolating();
+  solution.block(1) = 0;
 
-  constraints.distribute(solution);
+  constraints.distribute(solution.block(0));
 
   std::cout << "Refinement Finished" << "\n";
 
@@ -497,19 +495,17 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 }
 
 template <int dim> void PoissonProblem<dim>::solve() {
+  SolverControl solver_control(20000, 1e-10);
 
-  SolverControl solver_control(Parameters::CONVERGENCE_ITERATIONS,
-                               Parameters::CONVERGENCE_LIMIT *
-                                   system_rhs.l2_norm());
-  SolverCG<Vector<double>> solver(solver_control);
+  SolverGMRES<BlockVector<double>> solver(solver_control);
 
-  // PreconditionSSOR<SparseMatrix<double>> preconditioner;
-  // preconditioner.initialize(system_matrix, 1.2);
-
-  // solver.solve(system_matrix, solution, system_rhs, preconditioner);
+  solution = 0;
 
   solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-  constraints.distribute(solution);
+
+  std::cout << "GMRES iterations = " << solver_control.last_step() << std::endl;
+
+  constraints.distribute(solution.block(0));
 }
 
 template <int dim> void PoissonProblem<dim>::initialize() {
