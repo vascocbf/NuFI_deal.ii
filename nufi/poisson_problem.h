@@ -48,7 +48,6 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -56,7 +55,6 @@
 #include "nufi/cells.h"
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
-#include "nufi/save_results.h"
 #include "omp.h"
 
 void save_space_vector(const std::vector<double> &vals,
@@ -231,20 +229,20 @@ eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
       VectorTools::point_gradient(mapping, dof_handler, solution, point);
   return Ex[0];
 }
-//
-// template <int dim>
-// std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
-//                                      const DoFHandler<dim> &dof_handler,
-//                                      const Vector<double> &solution,
-//                                      const std::vector<Point<dim>> &points) {
-//   size_t p_size = points.size();
-//
-//   std::vector<double> Ex(p_size);
-//   for (size_t i = 0; i < p_size; ++i)
-//     Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
-//
-//   return Ex;
-// }
+
+template <int dim>
+std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
+                                     const DoFHandler<dim> &dof_handler,
+                                     const Vector<double> &solution,
+                                     const std::vector<Point<dim>> &points) {
+  size_t p_size = points.size();
+
+  std::vector<double> Ex(p_size);
+  for (size_t i = 0; i < p_size; ++i)
+    Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
+
+  return Ex;
+}
 
 template <int dim>
 double eval_point_value(const Mapping<dim> &mapping,
@@ -264,9 +262,9 @@ void PoissonProblem<dim>::save_grid_to_file(std::string &filename) const {
     std::ofstream out(filename);
     grid_out.write_svg(triangulation, out);
   } else if (dim == 1) {
-    filename += ".gnuplot";
+    filename += ".vtu";
     std::ofstream out(filename);
-    grid_out.write_gnuplot(triangulation, out);
+    grid_out.write_vtu(triangulation, out);
   }
 
   std::cout << "Grid written to " << filename << "\n";
@@ -475,11 +473,12 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 
   triangulation.execute_coarsening_and_refinement();
 
-  setup_system_in_refinement_before_interpolating();
+  setup_system();
+  // setup_system_in_refinement_before_interpolating();
 
   transfer.interpolate(refined_solution, solution);
 
-  setup_system_in_refinement_after_interpolating();
+  // setup_system_in_refinement_after_interpolating();
 
   constraints.distribute(solution);
 
