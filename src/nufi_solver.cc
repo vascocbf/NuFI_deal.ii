@@ -329,11 +329,12 @@ void NuFISolver::run() {
                                  phi_history[it].solution);
       int_E_squared.push_back(int_val);
       save_space_vector(int_E_squared, "electricint", it);
-      std::cout << "Time since start = " << total_time << "\n\n";
 
       plot_time = timer.elapsed() - plot_start;
+      std::cout << "Results saved in " << plot_start << "[s]" << "\n";
     }
     total_time = timer.elapsed();
+    std::cout << "Time since start = " << total_time << "\n\n";
 
     time_file << it << " " << step_time << " " << total_time << " "
               << compute_time << " " << refine_time << " " << plot_time << "\n";

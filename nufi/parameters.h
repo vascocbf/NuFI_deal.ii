@@ -28,6 +28,10 @@ constexpr unsigned int FE_DEGREE = 3;
 constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
+// gauge fix options
+constexpr double GAUGE_X_MIN = 2.5;
+constexpr double GAUGE_X_MAX = 3.5;
+
 constexpr double EPS = 0.01;
 constexpr double WAVE_NR = 0.5;
 constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)

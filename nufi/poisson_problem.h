@@ -104,8 +104,7 @@ public:
 private:
   void create_mesh();
   void setup_system();
-  void setup_system_in_refinement_before_interpolating();
-  void setup_system_in_refinement_after_interpolating();
+  void setup_gauge();
   void assemble_system();
   void solve();
 
@@ -126,6 +125,8 @@ private:
   // Vector<double> rhs;
 
   MappingQ<dim> mapping;
+
+  const bool PRINT_GAUGE_DOF_POSITION = true;
 
   // mutable std::vector<double> local_solution_buffer;
   // mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
@@ -290,6 +291,35 @@ template <int dim> void PoissonProblem<dim>::create_mesh() {
   triangulation.refine_global(Parameters::GLOBAL_REFINEMENT);
 }
 
+template <int dim> void PoissonProblem<dim>::setup_gauge() {
+  const auto support_points =
+      DoFTools::map_dofs_to_support_points(mapping, dof_handler);
+
+  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
+
+  // Search only inside the protected region
+  for (const auto &[dof, point] : support_points) {
+    if (constraints.is_constrained(dof))
+      continue;
+    const double x = point[0];
+    if (x >= Parameters::X_DOMAIN_RIGHT - .5 ||
+        (x <= Parameters::X_DOMAIN_LEFT + .5 && x != 0)) {
+      gauge_dof = dof;
+
+      if (PRINT_GAUGE_DOF_POSITION)
+        std::cout << " gauge_dof = " << gauge_dof
+                  << " gauge_point = " << point[0] << std::endl;
+      break;
+    }
+  }
+
+  Assert(gauge_dof != numbers::invalid_dof_index,
+         ExcMessage("No gauge DoF found in protected gauge region."));
+
+  constraints.add_line(gauge_dof);
+  constraints.set_inhomogeneity(gauge_dof, 0.0);
+}
+
 template <int dim> void PoissonProblem<dim>::setup_system() {
 
   dof_handler.distribute_dofs(fe);
@@ -297,26 +327,9 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   constraints.clear();
 
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-
   DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
 
-  // Gauge fix for periodic Poisson:
-  // remove the constant nullspace by pinning one unconstrained DoF.
-  // (by Paul Wilhelm)
-  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
-
-  for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i) {
-    if (!constraints.is_constrained(i)) {
-      gauge_dof = i;
-      break;
-    }
-  }
-
-  Assert(gauge_dof != numbers::invalid_dof_index,
-         ExcMessage("No unconstrained DoF found for gauge fixing."));
-
-  constraints.add_line(gauge_dof);
-  constraints.set_inhomogeneity(gauge_dof, 0.0);
+  setup_gauge();
 
   constraints.close();
 
@@ -335,55 +348,6 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   // local_solution_buffer.resize(fe.n_dofs_per_cell());
   // evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
   // update_gradients);
-}
-
-template <int dim>
-void PoissonProblem<dim>::setup_system_in_refinement_before_interpolating() {
-  dof_handler.distribute_dofs(fe);
-
-  constraints.clear();
-
-  DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-
-  DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
-
-  // Do NOT close the constraints yet.
-  // The gauge will be added after interpolation.
-
-  solution.reinit(dof_handler.n_dofs());
-  system_rhs.reinit(dof_handler.n_dofs());
-
-  cell_locator.rebuild(dof_handler, triangulation);
-}
-
-template <int dim>
-void PoissonProblem<dim>::setup_system_in_refinement_after_interpolating() {
-
-  // Add the gauge constraint.
-  types::global_dof_index gauge_dof = numbers::invalid_dof_index;
-
-  for (types::global_dof_index i = 0; i < dof_handler.n_dofs(); ++i) {
-    if (!constraints.is_constrained(i)) {
-      gauge_dof = i;
-      break;
-    }
-  }
-
-  Assert(gauge_dof != numbers::invalid_dof_index,
-         ExcMessage("No unconstrained DoF found for gauge fixing."));
-
-  constraints.add_line(gauge_dof);
-  constraints.set_inhomogeneity(gauge_dof, 0.0);
-
-  constraints.close();
-
-  DynamicSparsityPattern dsp(dof_handler.n_dofs());
-
-  DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
-
-  sparsity_pattern.copy_from(dsp);
-
-  system_matrix.reinit(sparsity_pattern);
 }
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
@@ -464,6 +428,18 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
                                                   0.3, 0.03);
 
+  // START: remove refinment flags from edges of domain to alow safe gauge
+  // fixing
+  // for (const auto &cell : triangulation.active_cell_iterators()) {
+  //   const double x = cell->center()[0];
+  //   if (x >= Parameters::X_DOMAIN_RIGHT - .5 ||
+  //       x <= Parameters::X_DOMAIN_LEFT + .5) {
+  //     cell->clear_refine_flag();
+  //     cell->clear_coarsen_flag();
+  //   }
+  // }
+  // END
+
   triangulation.prepare_coarsening_and_refinement();
 
   SolutionTransfer<dim, Vector<double>> transfer(dof_handler);
@@ -474,11 +450,8 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   triangulation.execute_coarsening_and_refinement();
 
   setup_system();
-  // setup_system_in_refinement_before_interpolating();
 
   transfer.interpolate(refined_solution, solution);
-
-  // setup_system_in_refinement_after_interpolating();
 
   constraints.distribute(solution);
 
