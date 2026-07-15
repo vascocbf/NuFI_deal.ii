@@ -23,14 +23,14 @@ constexpr unsigned int NV = 128;
 constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 
 // deal.ii options
-constexpr unsigned int GLOBAL_REFINEMENT = 6;
+constexpr unsigned int GLOBAL_REFINEMENT = 8;
 constexpr unsigned int FE_DEGREE = 3;
 constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
-// gauge fix options
-constexpr double GAUGE_X_MIN = 2.5;
-constexpr double GAUGE_X_MAX = 3.5;
+// Gauge options
+constexpr double GAUGE_DOMAIN_LEFT = 3.2;
+constexpr double GAUGE_DOMAIN_RIGHT = 3.8;
 
 constexpr double EPS = 0.01;
 constexpr double WAVE_NR = 0.5;
@@ -39,7 +39,7 @@ constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 // NUFI options
 constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
-constexpr unsigned int REFINE_FREQUENCY = 1;
+constexpr unsigned int REFINE_FREQUENCY = 3;
 
 // Plotting options
 constexpr int PLOT_FREQUENCY = 1;

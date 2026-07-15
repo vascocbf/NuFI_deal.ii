@@ -8,7 +8,6 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/tria.h>
-#include <memory>
 #include <vector>
 
 using namespace dealii;

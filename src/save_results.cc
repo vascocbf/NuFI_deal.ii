@@ -72,6 +72,35 @@ void save_rho(const NuFISolver &solver, unsigned int n,
   file.close();
 }
 
+void save_Efield_new(unsigned int it,
+                     std::vector<GridStructure<1>> &grid_versions,
+                     std::vector<SolutionSnapshot<1>> &phi_history,
+                     unsigned int Nx_out) {
+  std::vector<double> x_eval_E = make_x_eval(Nx_out);
+
+  auto grad_phi = eval(x_eval_E, grid_versions[phi_history[it].grid_version],
+                       phi_history[it].solution);
+
+  std::vector<std::pair<double, double>> ordered_E;
+
+  for (size_t i = 0; i < x_eval_E.size(); ++i) {
+    double E = -grad_phi[i];
+    ordered_E.push_back({x_eval_E[i], E});
+  }
+
+  std::sort(ordered_E.begin(), ordered_E.end());
+
+  std::ofstream E_file("results/E_" + std::to_string(it) + ".dat");
+
+  for (auto [x, E] : ordered_E)
+    E_file << x << " " << E << "\n";
+
+  std::cout << "Saving iteration " << it << " using grid version "
+            << phi_history[it].grid_version << "\n";
+
+  E_file.close();
+}
+
 void save_Efield([[maybe_unused]] unsigned int n, GridStructure<1> &grid_struct,
                  std::vector<SolutionSnapshot<1>> &phi_history,
                  unsigned int Nx_out, const std::string &filename) {

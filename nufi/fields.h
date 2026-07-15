@@ -13,11 +13,19 @@
 using namespace dealii;
 
 inline std::vector<double> make_x_eval(size_t Nx) {
-  std::vector<double> x_eval(Nx);
-  const double dx = Parameters::LX / Nx;
-  for (size_t i = 0; i < Nx; ++i)
-    x_eval[i] = Parameters::X_DOMAIN_LEFT + i * dx;
-  return x_eval;
+
+  std::vector<double> x_eval_E;
+
+  double dx = (Parameters::X_DOMAIN_RIGHT - Parameters::X_DOMAIN_LEFT) / Nx;
+
+  for (unsigned int i = 0; i < Nx; ++i) {
+    x_eval_E.push_back(Parameters::X_DOMAIN_LEFT + (i + 0.5) * dx);
+  }
+  // std::vector<double> x_eval(Nx);
+  // const double dx = Parameters::LX / Nx;
+  // for (size_t i = 0; i < Nx; ++i)
+  //   x_eval[i] = Parameters::X_DOMAIN_LEFT + i * dx;
+  return x_eval_E;
 }
 
 inline void reset_x_eval(std::vector<double> &x_vals) {
@@ -41,8 +49,11 @@ inline double f0(const double x, const double v,
 inline std::vector<double> eval(std::vector<double> &X,
                                 const GridStructure<1> &grid,
                                 const Vector<double> &solution) noexcept {
+
+  AssertThrow(grid.dof_handler->n_dofs() == solution.size(),
+              ExcMessage("@ eval(...) grid's number of DoFs doesn't correspond "
+                         "to solution's size"));
   size_t x_size = X.size();
-  std::vector<double> evals(x_size);
   std::vector<Point<1>> Points(x_size);
 
   for (size_t i = 0; i < x_size; ++i) {
@@ -97,5 +108,4 @@ Point_vector_to_double_vector(const std::vector<Point<1>> &Points) {
 
   return vector;
 }
-
 #endif

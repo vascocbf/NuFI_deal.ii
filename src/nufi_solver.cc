@@ -58,6 +58,11 @@ std::vector<double> NuFISolver::eval_ftilda(
                    ", expected by grid_struct = " +
                    std::to_string(grid_struct[phi_history[n].grid_version]
                                       .dof_handler->n_dofs())));
+    AssertThrow(
+        grid_struct[phi_history[n].grid_version].grid_version ==
+            phi_history[n].grid_version,
+        ExcMessage(
+            "grid.grid_version not equal to phi_history[n].grid_version"));
 
     tmp = eval(X, grid_struct[phi_history[n].grid_version],
                phi_history[n].solution); // call eval only once
@@ -200,7 +205,7 @@ void NuFISolver::run() {
   std::vector<GridStructure<1>> grid_versions;
   std::vector<SolutionSnapshot<1>> phi_history;
 
-  update_grid_versions(grid_versions, poisson);
+  // update_grid_versions(grid_versions, poisson);
   // update_solution_history(phi_history, poisson,
   //                         grid_versions.back().grid_version);
 
@@ -278,21 +283,13 @@ void NuFISolver::run() {
       return eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
     });
 
-    poisson.solve_step();
-
-    compute_time = timer.elapsed() - compute_start;
-
-    if (it % Parameters::REFINE_FREQUENCY == 0 && it != 0) {
-      double refine_start = timer.elapsed();
-
-      poisson.coarse_and_refine_grid(it);
-
-      update_grid_versions(grid_versions, poisson);
-
-      refine_time = timer.elapsed() - refine_start;
-      std::cout << "Refinement step done in "
-                << std::to_string(std::round(std::floor(refine_time))) << "[s]"
-                << "\n";
+    if (it % Parameters::REFINE_FREQUENCY == 0) {
+      // if (it == 0) {
+      poisson.solve_step(it, grid_versions, true);
+      compute_time = timer.elapsed() - compute_start;
+    } else {
+      poisson.solve_step(it, grid_versions, false);
+      compute_time = timer.elapsed() - compute_start;
     }
     update_solution_history(phi_history, poisson,
                             grid_versions.back().grid_version);
@@ -314,15 +311,16 @@ void NuFISolver::run() {
       save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
                "results/rho_" + std::to_string(it) + ".dat");
 
-      std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
-      std::vector<double> tmp_Ex(x_eval_Ex.size());
-      tmp_Ex = eval(x_eval_Ex, grid_versions[phi_history[it].grid_version],
-                    phi_history[it].solution);
-
-      std::vector<double> E_x(Parameters::PLOT_NX);
-      for (size_t i = 0; i < Parameters::PLOT_NX; ++i)
-        E_x[i] = -tmp_Ex[i];
-      save_space_vector(E_x, "field", it);
+      // std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
+      // std::vector<double> tmp_Ex(x_eval_Ex.size());
+      // tmp_Ex = eval(x_eval_Ex, grid_versions[phi_history[it].grid_version],
+      //               phi_history[it].solution);
+      //
+      // std::vector<double> E_x(Parameters::PLOT_NX);
+      // for (size_t i = 0; i < Parameters::PLOT_NX; ++i)
+      //   E_x[i] = -tmp_Ex[i];
+      // save_space_vector(E_x, "field", it);
+      save_Efield_new(it, grid_versions, phi_history);
 
       double int_val = 0.5 * integral_space_vector_squared(
                                  grid_versions[phi_history[it].grid_version],
