@@ -48,6 +48,8 @@ template <int dim> struct GridStructure {
 
     std::vector<double> values(points.size());
 
+    // Uses point_gradient
+
     // #pragma omp parallel for
     //     for (unsigned int p = 0; p < points.size(); ++p) {
     //
@@ -60,6 +62,7 @@ template <int dim> struct GridStructure {
     //     return values;
     //   }
 
+    // Uses cell locator
 #pragma omp parallel
     {
       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
@@ -82,9 +85,6 @@ template <int dim> struct GridStructure {
         values[p] = evaluator.get_gradient(0)[0];
       }
     }
-    // AssertThrow(dof_handler->n_dofs() == solution.size(),
-    //             ExcMessage("Solution vector size does not match
-    //             DoFHandler.)");
     return values;
   }
 };
@@ -102,21 +102,11 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
   grid.fe = std::make_unique<FE_Q<dim>>(poisson.get_fe());
 
   grid.dof_handler = std::make_unique<DoFHandler<dim>>(*grid.triangulation);
-
   grid.dof_handler->distribute_dofs(*grid.fe);
 
   grid.mapping = std::make_unique<MappingQ<dim>>(poisson.get_mapping());
-  grid.constraints =
-      std::make_unique<AffineConstraints<double>>(poisson.get_constraints());
 
-  grid.locator = std::make_unique<CellLocator<dim>>();
-
-  // START: transfer poisson.solution to saved grid dofs
-  SolutionTransfer<dim> solution_transfer(*grid.dof_handler);
-  const Vector<double> coarse_solution = poisson.solution;
-  solution_transfer.prepare_for_coarsening_and_refinement(coarse_solution);
-  // START: setup_system();
-  grid.constraints->clear();
+  grid.constraints = std::make_unique<AffineConstraints<double>>();
 
   DoFTools::make_hanging_node_constraints(*grid.dof_handler, *grid.constraints);
   DoFTools::make_periodicity_constraints(*grid.dof_handler, 0, 1, 0,
@@ -147,21 +137,10 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
 
   grid.constraints->add_line(gauge_dof);
   grid.constraints->set_inhomogeneity(gauge_dof, 0.0);
-
   grid.constraints->close();
 
-  DynamicSparsityPattern dsp(grid.dof_handler->n_dofs());
-  DoFTools::make_sparsity_pattern(*grid.dof_handler, dsp, *grid.constraints);
-  poisson.sparsity_pattern.copy_from(dsp);
-  poisson.system_matrix.reinit(poisson.sparsity_pattern);
-  poisson.solution.reinit(grid.dof_handler->n_dofs());
-  poisson.system_rhs.reinit(grid.dof_handler->n_dofs());
-
+  grid.locator = std::make_unique<CellLocator<dim>>();
   grid.locator->rebuild(*grid.dof_handler, *grid.triangulation);
-  // END
-
-  solution_transfer.interpolate(coarse_solution, poisson.solution);
-  // END
 
   // START: diagnostics
   AssertThrow(
@@ -169,32 +148,18 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
           grid.constraints->n_constraints(),
       ExcMessage(
           "PoissonProblem constraints doesn't match Snapshot constraints"));
-  for (auto c1 = poisson.get_dof_handler().begin_active(),
-            c2 = grid.dof_handler->begin_active();
-       c1 != poisson.get_dof_handler().end(); ++c1, ++c2) {
-    std::vector<types::global_dof_index> d1(c1->get_fe().dofs_per_cell);
-    std::vector<types::global_dof_index> d2(c2->get_fe().dofs_per_cell);
-
-    c1->get_dof_indices(d1);
-    c2->get_dof_indices(d2);
-
-    AssertThrow(d1 == d2, ExcInternalError());
-  }
+  // for (auto c1 = poisson.get_dof_handler().begin_active(),
+  //           c2 = grid.dof_handler->begin_active();
+  //      c1 != poisson.get_dof_handler().end(); ++c1, ++c2) {
+  //   std::vector<types::global_dof_index> d1(c1->get_fe().dofs_per_cell);
+  //   std::vector<types::global_dof_index> d2(c2->get_fe().dofs_per_cell);
   //
-  // auto support_points =
-  //     DoFTools::map_dofs_to_support_points(*grid.mapping, *grid.dof_handler);
+  //   c1->get_dof_indices(d1);
+  //   c2->get_dof_indices(d2);
   //
-  // std::cout << "COPY\n";
-  //
-  // for (const auto &[dof, point] : support_points) {
-  //   std::cout << dof << " : " << point[0] << "\n";
+  //   AssertThrow(d1 == d2, ExcInternalError());
   // }
-  // for (auto cell : grid.dof_handler->active_cell_iterators()) {
-  //   std::cout << "@ GridStructure: " << cell->id() << "  " <<
-  //   cell->center()[0]
-  //             << '\n';
-  // }
-  // END
+  // END: diagnostics
 
   return grid;
 }

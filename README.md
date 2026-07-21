@@ -7,6 +7,6 @@ This simulation of the Vlasov-Poisson system in 1x1v dimensions uses
 ---
 status:
 
-Fail
-
---------------------------------------------------------
+Refinement working:
+- grid versions saved on a vector
+- solutions point to a version of the grid

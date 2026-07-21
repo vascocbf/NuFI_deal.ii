@@ -103,43 +103,27 @@ public:
 
   void save_grid_to_file(std::string &filename) const;
 
-  Triangulation<dim> triangulation;
-  DoFHandler<dim> dof_handler;
-  CellLocator<dim> cell_locator;
-
-  Vector<double> solution; // phi
-  SparsityPattern sparsity_pattern;
-  SparseMatrix<double> system_matrix;
-  Vector<double> system_rhs;
-
 private:
   void create_mesh();
   void setup_system();
   void assemble_system();
   void solve(size_t it);
 
-  // Triangulation<dim> triangulation;
-  FE_Q<dim> fe;
-  // DoFHandler<dim> dof_handler;
-
-  AffineConstraints<double> constraints;
-
-  // SparsityPattern sparsity_pattern;
-  // SparseMatrix<double> system_matrix;
-
-  // Vector<double> solution; // phi
-  // Vector<double> system_rhs;
-
   std::function<std::vector<double>(const std::vector<Point<dim>> &)>
       rhs_function;
-  // Vector<double> rhs;
 
   MappingQ<dim> mapping;
+  FE_Q<dim> fe;
+  AffineConstraints<double> constraints;
+  Triangulation<dim> triangulation;
+  DoFHandler<dim> dof_handler;
+  CellLocator<dim> cell_locator;
+  Vector<double> solution; // phi
+  SparsityPattern sparsity_pattern;
+  SparseMatrix<double> system_matrix;
+  Vector<double> system_rhs;
 
   const bool PRINT_GAUGE_DOF_POSITION = true;
-
-  // mutable std::vector<double> local_solution_buffer;
-  // mutable std::unique_ptr<FEPointEvaluation<dim, dim>> evaluator;
 };
 
 //====//====//
@@ -164,10 +148,10 @@ void PoissonProblem<dim>::set_rhs_function(
 
 template <int dim>
 PoissonProblem<dim>::PoissonProblem(unsigned int degree)
-    : // triangulation(Triangulation<dim>::limit_level_difference_at_vertices),
-      triangulation(), dof_handler(triangulation), fe(degree), mapping(degree) {
+    : mapping(degree), fe(degree), triangulation(), dof_handler(triangulation) {
 }
 
+// Uses FEPointEvaluation
 template <int dim>
 std::vector<double>
 PoissonProblem<dim>::sample_electric_field(double x_min, double x_max,
@@ -180,32 +164,27 @@ PoissonProblem<dim>::sample_electric_field(double x_min, double x_max,
     const double x = x_min + i * dx;
     const Point<dim> point(x);
 
-    // 1. Find the active cell containing x
     const auto cell_point_pair =
         GridTools::find_active_cell_around_point(mapping, dof_handler, point);
 
     const auto cell = cell_point_pair.first;
     const Point<dim> &unit_point = cell_point_pair.second;
 
-    // 2. FEPointEvaluation expects an ArrayView of points
     std::vector<Point<dim>> points(1, unit_point);
     ArrayView<const Point<dim>> point_view(points);
 
     FEPointEvaluation<1, dim> evaluator(mapping, dof_handler.get_fe(),
                                         update_gradients);
 
-    // reinit with ArrayView of points
     evaluator.reinit(cell, point_view);
 
     Vector<double> local_dofs(dof_handler.get_fe().dofs_per_cell);
     cell->get_dof_values(solution, local_dofs);
 
-    // 3. Evaluate gradient at this point
     evaluator.evaluate(local_dofs, EvaluationFlags::gradients);
 
     const Tensor<1, dim> grad_phi = evaluator.get_gradient(0);
 
-    // 4. Compute E = -grad(phi)
     E_values[i] = -grad_phi[0];
   }
 
@@ -471,6 +450,8 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
 
 template <int dim> void PoissonProblem<dim>::solve(size_t it) {
 
+  std::cout << "Calling PoissonProblem::solve for time-step " << it << "\n";
+
   SolverControl solver_control(Parameters::CONVERGENCE_ITERATIONS,
                                Parameters::CONVERGENCE_LIMIT *
                                    system_rhs.l2_norm());
@@ -479,26 +460,26 @@ template <int dim> void PoissonProblem<dim>::solve(size_t it) {
   solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
   constraints.distribute(solution);
 
-  std::ofstream out("results/phi_after_solve_" + std::to_string(it) + ".dat");
-  std::vector<std::pair<double, double>> data;
-
-  const auto support =
-      DoFTools::map_dofs_to_support_points(mapping, dof_handler);
-
-  for (const auto &[dof, p] : support) {
-    data.emplace_back(p[0], solution[dof]);
-  }
-
-  std::sort(data.begin(), data.end());
-
-  for (const auto &[x, value] : data) {
-    out << x << " " << value << "\n";
-  }
-
-  std::vector<double> E_x =
-      sample_electric_field(Parameters::X_DOMAIN_LEFT,
-                            Parameters::X_DOMAIN_RIGHT, Parameters::PLOT_NX);
-  save_space_vector(E_x, "E_x_after_solve", it);
+  // std::ofstream out("results/phi_after_solve_" + std::to_string(it) +
+  // ".dat"); std::vector<std::pair<double, double>> data;
+  //
+  // const auto support =
+  //     DoFTools::map_dofs_to_support_points(mapping, dof_handler);
+  //
+  // for (const auto &[dof, p] : support) {
+  //   data.emplace_back(p[0], solution[dof]);
+  // }
+  //
+  // std::sort(data.begin(), data.end());
+  //
+  // for (const auto &[x, value] : data) {
+  //   out << x << " " << value << "\n";
+  // }
+  //
+  // std::vector<double> E_x =
+  //     sample_electric_field(Parameters::X_DOMAIN_LEFT,
+  //                           Parameters::X_DOMAIN_RIGHT, Parameters::PLOT_NX);
+  // save_space_vector(E_x, "E_x_after_solve", it);
 }
 
 template <int dim> void PoissonProblem<dim>::initialize() {
@@ -512,13 +493,10 @@ void PoissonProblem<dim>::solve_step(
   if (refining) {
     coarse_and_refine_grid(it);
     setup_system();
+    update_grid_versions(grid_versions, *this);
   }
-
   assemble_system();
   solve(it);
-
-  if (refining)
-    update_grid_versions(grid_versions, *this);
 }
 
 // NuFI doesnt use this, kept only for testing PoissonProblem

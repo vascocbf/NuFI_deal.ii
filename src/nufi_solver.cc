@@ -27,7 +27,7 @@
 using namespace dealii;
 
 std::vector<double> NuFISolver::eval_ftilda(
-    unsigned int n, std::vector<double> &X, double u,
+    unsigned int n, std::vector<double> X, double u,
     const std::vector<GridStructure<1>> &grid_struct,
     const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
@@ -38,7 +38,7 @@ std::vector<double> NuFISolver::eval_ftilda(
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
       results[i] = f0(X[i], U[i]);
-    reset_x_eval(X);
+    // reset_x_eval(X);
     return results;
   }
 
@@ -86,12 +86,12 @@ std::vector<double> NuFISolver::eval_ftilda(
   }
   for (size_t i = 0; i < x_size; ++i)
     results[i] = f0(X[i], U[i]);
-  reset_x_eval(X);
+  // reset_x_eval(X);
   return results;
 }
 
 std::vector<double>
-NuFISolver::eval_f(unsigned int n, std::vector<double> &X, double u,
+NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
                    const std::vector<GridStructure<1>> &grid_struct,
                    const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
@@ -102,7 +102,7 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> &X, double u,
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
       results[i] = f0(X[i], U[i]);
-    reset_x_eval(X);
+    // reset_x_eval(X);
     return results;
   }
 
@@ -142,7 +142,7 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> &X, double u,
 
   for (size_t i = 0; i < x_size; ++i)
     results[i] = f0(X[i], U[i]);
-  reset_x_eval(X);
+  // reset_x_eval(X);
   return results;
 }
 
@@ -243,8 +243,8 @@ void NuFISolver::run() {
               << std::endl;
 
     // START: diagnostics
-    std::cout << "cells = " << poisson.triangulation.n_active_cells() << "\n"
-              << " dofs = " << poisson.dof_handler.n_dofs() << "\n";
+    // std::cout << "cells = " << poisson.triangulation.n_active_cells() << "\n"
+    //           << " dofs = " << poisson.dof_handler.n_dofs() << "\n";
     // double min_h = 1e100;
     // double max_h = 0;
     //
@@ -311,16 +311,7 @@ void NuFISolver::run() {
       save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
                "results/rho_" + std::to_string(it) + ".dat");
 
-      // std::vector<double> x_eval_Ex = make_x_eval(Parameters::PLOT_NX);
-      // std::vector<double> tmp_Ex(x_eval_Ex.size());
-      // tmp_Ex = eval(x_eval_Ex, grid_versions[phi_history[it].grid_version],
-      //               phi_history[it].solution);
-      //
-      // std::vector<double> E_x(Parameters::PLOT_NX);
-      // for (size_t i = 0; i < Parameters::PLOT_NX; ++i)
-      //   E_x[i] = -tmp_Ex[i];
-      // save_space_vector(E_x, "field", it);
-      save_Efield_new(it, grid_versions, phi_history);
+      save_Efield(it, grid_versions, phi_history);
 
       double int_val = 0.5 * integral_space_vector_squared(
                                  grid_versions[phi_history[it].grid_version],

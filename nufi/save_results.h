@@ -19,14 +19,9 @@ void save_rho(const NuFISolver &solver, unsigned int n,
               std::vector<SolutionSnapshot<1>> &phi_history,
               unsigned int Nx_out, const std::string &filename);
 
-void save_Efield(unsigned int n, GridStructure<1> &grid_struct,
+void save_Efield(unsigned int it, std::vector<GridStructure<1>> &grid_versions,
                  std::vector<SolutionSnapshot<1>> &phi_history,
-                 unsigned int Nx_out, const std::string &filename);
-
-void save_Efield_new(unsigned int it,
-                     std::vector<GridStructure<1>> &grid_versions,
-                     std::vector<SolutionSnapshot<1>> &phi_history,
-                     unsigned int Nx_out = Parameters::PLOT_NX);
+                 unsigned int Nx_out = Parameters::PLOT_NX);
 
 void save_space_vector(const std::vector<double> &vals,
                        const std::string &filename, size_t it);

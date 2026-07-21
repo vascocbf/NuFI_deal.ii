@@ -26,11 +26,11 @@ public:
            const std::vector<SolutionSnapshot<1>> &phi_history,
            const unsigned int Nv = Parameters::NV) const;
   std::vector<double>
-  eval_ftilda(unsigned int, std::vector<double> &x, double u,
+  eval_ftilda(unsigned int n, std::vector<double> x, double u,
               const std::vector<GridStructure<1>> &grid_struct,
               const std::vector<SolutionSnapshot<1>> &phi_history) const;
   std::vector<double>
-  eval_f(unsigned int n, std::vector<double> &x, double u,
+  eval_f(unsigned int n, std::vector<double> x, double u,
          const std::vector<GridStructure<1>> &grid_struct,
          const std::vector<SolutionSnapshot<1>> &phi_history) const;
 

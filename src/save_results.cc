@@ -72,10 +72,9 @@ void save_rho(const NuFISolver &solver, unsigned int n,
   file.close();
 }
 
-void save_Efield_new(unsigned int it,
-                     std::vector<GridStructure<1>> &grid_versions,
-                     std::vector<SolutionSnapshot<1>> &phi_history,
-                     unsigned int Nx_out) {
+void save_Efield(unsigned int it, std::vector<GridStructure<1>> &grid_versions,
+                 std::vector<SolutionSnapshot<1>> &phi_history,
+                 unsigned int Nx_out) {
   std::vector<double> x_eval_E = make_x_eval(Nx_out);
 
   auto grad_phi = eval(x_eval_E, grid_versions[phi_history[it].grid_version],
@@ -96,32 +95,9 @@ void save_Efield_new(unsigned int it,
     E_file << x << " " << E << "\n";
 
   std::cout << "Saving iteration " << it << " using grid version "
-            << phi_history[it].grid_version << "\n";
+            << phi_history[it].grid_version << "\n\n";
 
   E_file.close();
-}
-
-void save_Efield([[maybe_unused]] unsigned int n, GridStructure<1> &grid_struct,
-                 std::vector<SolutionSnapshot<1>> &phi_history,
-                 unsigned int Nx_out, const std::string &filename) {
-  std::ofstream file(filename);
-
-  double xmin = Parameters::X_DOMAIN_LEFT;
-  double xmax = Parameters::X_DOMAIN_RIGHT;
-
-  std::vector<double> x_eval = make_x_eval(Nx_out);
-
-  // select from E_coeffs
-
-  file << Nx_out << "\n";
-  file << xmin << " " << xmax << "\n";
-
-  std::vector<double> tmp = eval(x_eval, grid_struct, phi_history[n].solution);
-  for (size_t i = 0; i < Nx_out; ++i) {
-    file << -tmp[i];
-    file << "\n";
-  }
-  file.close();
 }
 
 void save_space_vector(const std::vector<double> &vals,
