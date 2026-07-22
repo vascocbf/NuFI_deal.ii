@@ -5,9 +5,9 @@ This simulation of the Vlasov-Poisson system dimensions uses
 - [deal.ii](https://dealii.org/) FEM package
 
 ---
-dimensions: 1x1v
+dimensions: 1x2v
 
-status:
+status: working, needs testing, not optimized (at all!)
 
 Refinement working:
 - grid versions saved on a vector

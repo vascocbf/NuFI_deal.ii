@@ -16,12 +16,17 @@ constexpr double LX_INV = 1 / LX;
 constexpr size_t CALC_NX = 256;
 constexpr double CALC_DX = LX / CALC_NX;
 
-constexpr double V_DOMAIN_LEFT = -10.;
-constexpr double V_DOMAIN_RIGHT = 10.;
+constexpr double V_DOMAIN_LEFT_1 = -10.;
+constexpr double V_DOMAIN_RIGHT_1 = 10.;
 
-constexpr unsigned int NV = 128;
-constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
+constexpr unsigned int NV_1 = 128;
+constexpr double DV_1 = std::abs(V_DOMAIN_RIGHT_1 - V_DOMAIN_LEFT_1) / NV_1;
 
+constexpr double V_DOMAIN_LEFT_2 = -10.;
+constexpr double V_DOMAIN_RIGHT_2 = 10.;
+
+constexpr unsigned int NV_2 = 128;
+constexpr double DV_2 = std::abs(V_DOMAIN_RIGHT_2 - V_DOMAIN_LEFT_2) / NV_2;
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 6;
 constexpr unsigned int FE_DEGREE = 3;
@@ -45,6 +50,7 @@ constexpr unsigned int REFINE_FREQUENCY = 30;
 constexpr int PLOT_FREQUENCY = 10;
 constexpr size_t PLOT_NX = CALC_NX;
 constexpr double PLOT_DX = LX / PLOT_NX;
+constexpr double PLOT_FIXED_V2 = 0.;
 const std::string PLOT_DIR = "results/";
 } // namespace Parameters
 

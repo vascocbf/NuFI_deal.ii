@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-void save_f(const NuFISolver &solver, unsigned int n,
+void save_f(const NuFISolver &solver, unsigned int n, const double v2_0,
             std::vector<GridStructure<1>> &grid_struct,
             std::vector<SolutionSnapshot<1>> &phi_history, unsigned int Nx_out,
             unsigned int Nv_out, const std::string &filename) {
@@ -21,21 +21,21 @@ void save_f(const NuFISolver &solver, unsigned int n,
   double xmin = Parameters::X_DOMAIN_LEFT;
   double xmax = Parameters::X_DOMAIN_RIGHT;
 
-  double vmin = Parameters::V_DOMAIN_LEFT;
-  double vmax = Parameters::V_DOMAIN_RIGHT;
+  double vmin_1 = Parameters::V_DOMAIN_LEFT_1;
+  double vmax_1 = Parameters::V_DOMAIN_RIGHT_1;
 
-  double dv = (vmax - vmin) / Nv_out;
+  double dv_1 = (vmax_1 - vmin_1) / Nv_out;
 
   file << Nx_out << " " << Nv_out << "\n";
   file << xmin << " " << xmax << "\n";
-  file << vmin << " " << vmax << "\n";
+  file << vmin_1 << " " << vmax_1 << "\n";
 
   std::vector<double> x_eval = make_x_eval(Nx_out);
   std::vector<double> val(Nx_out);
 
   for (unsigned int j = 0; j < Nv_out; ++j) {
-    double v = vmin + (j + 0.5) * dv;
-    val = solver.eval_f(n, x_eval, v, grid_struct, phi_history);
+    double v = vmin_1 + (j + 0.5) * dv_1;
+    val = solver.eval_f(n, x_eval, v, v2_0, grid_struct, phi_history);
 
     for (unsigned int i = 0; i < Nx_out; ++i) {
       file << val[i];

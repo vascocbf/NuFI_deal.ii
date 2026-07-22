@@ -1,7 +1,7 @@
 #ifndef FIELDS_H
 #define FIELDS_H
 
-#include "grids.h"
+#include "nufi/grids.h"
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"
 #include <cmath>
@@ -21,26 +21,15 @@ inline std::vector<double> make_x_eval(size_t Nx) {
   for (unsigned int i = 0; i < Nx; ++i) {
     x_eval_E.push_back(Parameters::X_DOMAIN_LEFT + (i + 0.5) * dx);
   }
-  // std::vector<double> x_eval(Nx);
-  // const double dx = Parameters::LX / Nx;
-  // for (size_t i = 0; i < Nx; ++i)
-  //   x_eval[i] = Parameters::X_DOMAIN_LEFT + i * dx;
   return x_eval_E;
 }
 
-inline void reset_x_eval(std::vector<double> &x_vals) {
-  const size_t Nx = x_vals.size();
-  const double dx = Parameters::LX / Nx;
-  for (size_t i = 0; i < Nx; ++i)
-    x_vals[i] = Parameters::X_DOMAIN_LEFT + i * dx;
-};
-
-inline double f0(const double x, const double v,
+inline double f0(const double x, const double v1, const double v2,
                  const double eps = Parameters::EPS,
                  const double k = Parameters::WAVE_NR) {
   const double prefactor =
       Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
-  const double gaussian = v * v * std::exp(-0.5 * v * v);
+  const double gaussian = v1 * v1 * std::exp(-0.5 * (v1 * v1 + v2 * v2));
 
   return prefactor * gaussian;
 }

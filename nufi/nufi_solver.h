@@ -24,13 +24,14 @@ public:
   eval_rho(unsigned int n, std::vector<double> &x,
            const std::vector<GridStructure<1>> &grid_struct,
            const std::vector<SolutionSnapshot<1>> &phi_history,
-           const unsigned int Nv = Parameters::NV) const;
+           const unsigned int Nv1 = Parameters::NV_1,
+           const unsigned int Nv2 = Parameters::NV_2) const;
   std::vector<double>
-  eval_ftilda(unsigned int n, std::vector<double> x, double u,
+  eval_ftilda(unsigned int n, std::vector<double> x, double u1, double u2,
               const std::vector<GridStructure<1>> &grid_struct,
               const std::vector<SolutionSnapshot<1>> &phi_history) const;
   std::vector<double>
-  eval_f(unsigned int n, std::vector<double> x, double u,
+  eval_f(unsigned int n, std::vector<double> x, double u1, double u2,
          const std::vector<GridStructure<1>> &grid_struct,
          const std::vector<SolutionSnapshot<1>> &phi_history) const;
 
@@ -38,7 +39,7 @@ public:
   eval_rho_points(unsigned int n, const std::vector<Point<1>> &points,
                   const std::vector<GridStructure<1>> &grid_struct,
                   const std::vector<SolutionSnapshot<1>> &phi_history,
-                  const unsigned int Nv) const;
+                  const unsigned int Nv1, const unsigned int Nv2) const;
 
 private:
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);

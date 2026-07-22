@@ -12,7 +12,6 @@
 #include <cstddef>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -27,18 +26,18 @@
 using namespace dealii;
 
 std::vector<double> NuFISolver::eval_ftilda(
-    unsigned int n, std::vector<double> X, double u,
+    unsigned int n, std::vector<double> X, double u1, double u2,
     const std::vector<GridStructure<1>> &grid_struct,
     const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
   size_t x_size = X.size();
 
-  std::vector<double> U(x_size, u);
+  std::vector<double> U1(x_size, u1);
+  std::vector<double> U2(x_size, u2);
   std::vector<double> results(x_size);
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
-      results[i] = f0(X[i], U[i]);
-    // reset_x_eval(X);
+      results[i] = f0(X[i], U1[i], U2[i]);
     return results;
   }
 
@@ -48,61 +47,53 @@ std::vector<double> NuFISolver::eval_ftilda(
   // We omit the initial half-step.
   while (--n) {
     for (size_t i = 0; i < x_size; ++i)
-      X[i] = X[i] - Parameters::DT * U[i];
-
-    AssertThrow(
-        phi_history[n].solution.size() ==
-            grid_struct[phi_history[n].grid_version].dof_handler->n_dofs(),
-        ExcMessage("In eval_ftilda: Solution size = " +
-                   std::to_string(phi_history[n].solution.size()) +
-                   ", expected by grid_struct = " +
-                   std::to_string(grid_struct[phi_history[n].grid_version]
-                                      .dof_handler->n_dofs())));
-    AssertThrow(
-        grid_struct[phi_history[n].grid_version].grid_version ==
-            phi_history[n].grid_version,
-        ExcMessage(
-            "grid.grid_version not equal to phi_history[n].grid_version"));
+      X[i] = X[i] - Parameters::DT * U1[i];
 
     tmp = eval(X, grid_struct[phi_history[n].grid_version],
                phi_history[n].solution); // call eval only once
 
     for (size_t i = 0; i < x_size; ++i) {
       Ex[i] = -tmp[i];
-      U[i] = U[i] + Parameters::DT * Ex[i];
+      U1[i] = U1[i] + Parameters::DT * Ex[i];
+
+      // IMPORTANT!! LOOK at this before 1x2v, and check with Paul
+      //
+      // No change to U2 because dv1/dt = E_x
+      // but dv2/dt = E_y = 0 (because were in 1x not 2x)
+      // U2[i] = U2[i] + Parameters::DT * Ey[i]; TO_BUILD
     }
   }
 
   // The final half-step.
   for (size_t i = 0; i < x_size; ++i)
-    X[i] = X[i] - Parameters::DT * U[i];
+    X[i] = X[i] - Parameters::DT * U1[i];
 
   tmp = eval(X, grid_struct[phi_history[n].grid_version],
              phi_history[n].solution); // call eval only once
 
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+    U1[i] = U1[i] + 0.5 * Parameters::DT * Ex[i];
   }
   for (size_t i = 0; i < x_size; ++i)
-    results[i] = f0(X[i], U[i]);
-  // reset_x_eval(X);
+    results[i] = f0(X[i], U1[i], U2[i]);
   return results;
 }
 
 std::vector<double>
-NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
+NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u1, double u2,
                    const std::vector<GridStructure<1>> &grid_struct,
                    const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
   size_t x_size = X.size();
 
-  std::vector<double> U(x_size, u);
+  std::vector<double> U1(x_size, u1);
+  std::vector<double> U2(x_size, u2);
+
   std::vector<double> results(x_size);
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
-      results[i] = f0(X[i], U[i]);
-    // reset_x_eval(X);
+      results[i] = f0(X[i], U1[i], U2[i]);
     return results;
   }
 
@@ -114,35 +105,34 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+    U1[i] = U1[i] + 0.5 * Parameters::DT * Ex[i];
   }
 
   while (--n) {
     for (size_t i = 0; i < x_size; ++i)
-      X[i] = X[i] - Parameters::DT * U[i];
+      X[i] = X[i] - Parameters::DT * U1[i];
 
     tmp = eval(X, grid_struct[phi_history[n].grid_version],
                phi_history[n].solution); // call eval only once
     for (size_t i = 0; i < x_size; ++i) {
       Ex[i] = -tmp[i];
-      U[i] = U[i] + Parameters::DT * Ex[i];
+      U1[i] = U1[i] + Parameters::DT * Ex[i];
     }
   }
 
   // The final half-step.
   for (size_t i = 0; i < x_size; ++i)
-    X[i] = X[i] - Parameters::DT * U[i];
+    X[i] = X[i] - Parameters::DT * U1[i];
 
   tmp = eval(X, grid_struct[phi_history[n].grid_version],
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+    U1[i] = U1[i] + 0.5 * Parameters::DT * Ex[i];
   }
 
   for (size_t i = 0; i < x_size; ++i)
-    results[i] = f0(X[i], U[i]);
-  // reset_x_eval(X);
+    results[i] = f0(X[i], U1[i], U2[i]);
   return results;
 }
 
@@ -150,26 +140,30 @@ std::vector<double>
 NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
                      const std::vector<GridStructure<1>> &grid_struct,
                      const std::vector<SolutionSnapshot<1>> &phi_history,
-                     const unsigned int Nv) const {
+                     const unsigned int Nv1, const unsigned int Nv2) const {
   size_t x_size = X.size();
 
-  const double dv =
-      (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
+  const double dv_0 = Parameters::DV_1;
+  const double v_min_0 = Parameters::V_DOMAIN_LEFT_1 + 0.5 * dv_0;
 
-  const double v_min = Parameters::V_DOMAIN_LEFT + 0.5 * dv;
+  const double dv_1 = Parameters::DV_2;
+  const double v_min_1 = Parameters::V_DOMAIN_LEFT_2 + 0.5 * dv_1;
 
   std::vector<double> integral(x_size, 0.0);
   std::vector<double> tmp_int(x_size);
 
-  for (unsigned int i = 0; i < Nv; ++i) {
-    tmp_int = eval_ftilda(n, X, v_min + i * dv, grid_struct,
-                          phi_history); // used eval_ftilda once per i
-    for (size_t ii = 0; ii < x_size; ++ii)
-      integral[ii] += tmp_int[ii];
+  for (unsigned int i = 0; i < Nv1; ++i) {
+    for (unsigned int j = 0; j < Nv2; ++j) {
+      tmp_int =
+          eval_ftilda(n, X, v_min_0 + i * dv_0, v_min_1 + j * dv_1, grid_struct,
+                      phi_history); // used eval_ftilda once per i
+      for (size_t ii = 0; ii < x_size; ++ii)
+        integral[ii] += tmp_int[ii];
+    }
   }
 
   for (size_t i = 0; i < x_size; ++i)
-    integral[i] = 1 - integral[i] * dv;
+    integral[i] = 1 - integral[i] * dv_0;
   return integral;
 }
 
@@ -177,9 +171,11 @@ std::vector<double>
 NuFISolver::eval_rho_points(unsigned int n, const std::vector<Point<1>> &points,
                             const std::vector<GridStructure<1>> &grid_struct,
                             const std::vector<SolutionSnapshot<1>> &phi_history,
-                            const unsigned int Nv) const {
+                            const unsigned int Nv1,
+                            const unsigned int Nv2) const {
   std::vector<double> point_vector = Point_vector_to_double_vector(points);
-  return NuFISolver::eval_rho(n, point_vector, grid_struct, phi_history, Nv);
+  return NuFISolver::eval_rho(n, point_vector, grid_struct, phi_history, Nv1,
+                              Nv2);
 }
 
 void NuFISolver::run() {
@@ -280,7 +276,8 @@ void NuFISolver::run() {
       for (size_t i = 0; i < points.size(); ++i)
         x[i] = points[i][0];
 
-      return eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
+      return eval_rho(it, x, grid_versions, phi_history, Parameters::NV_1,
+                      Parameters::NV_2);
     });
 
     if (it % Parameters::REFINE_FREQUENCY == 0) {
@@ -306,8 +303,9 @@ void NuFISolver::run() {
       double plot_start = timer.elapsed();
 
       std::cout << "Saving results...   ";
-      save_f(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
-             Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
+      save_f(*this, it, Parameters::PLOT_FIXED_V2, grid_versions, phi_history,
+             Parameters::PLOT_NX, Parameters::NV_1,
+             "results/ftilda_" + std::to_string(it) + ".dat");
       save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
                "results/rho_" + std::to_string(it) + ".dat");
 
