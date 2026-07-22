@@ -7,8 +7,11 @@ This simulation of the Vlasov-Poisson system dimensions uses
 ---
 dimensions: 1x1v
 
-status:
+status: Working, to be re-re-viewed
 
 Refinement working:
 - grid versions saved on a vector
 - solutions point to a version of the grid
+
+todo:
+- add ions
