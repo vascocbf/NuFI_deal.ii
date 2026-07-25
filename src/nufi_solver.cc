@@ -214,6 +214,7 @@ void NuFISolver::run() {
   std::ofstream time_file("results/simulation_time.dat");
 
   double total_time = 0;
+  stopwatch<double> total_timer;
 
   time_file << "it "
             << "step_time "
@@ -322,7 +323,7 @@ void NuFISolver::run() {
       plot_time = timer.elapsed() - plot_start;
       std::cout << "Results saved in " << plot_start << "[s]" << "\n";
     }
-    total_time = timer.elapsed();
+    total_time = total_timer.elapsed();
     std::cout << "Time since start = " << total_time << "\n\n";
 
     time_file << it << " " << step_time << " " << total_time << " "

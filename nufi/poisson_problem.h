@@ -375,7 +375,9 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   Assert(rhs_function,
          ExcMessage("Poisson RHS function has not been initialized."));
 
+  std::cout << "Start of full rho eval..." << "\n";
   std::vector<double> all_rho = rhs_function(all_q_points);
+  std::cout << "End of full rho eval..." << "\n";
 
   Assert(all_rho.size() == all_q_points.size(),
          ExcMessage("rhs_function returned wrong size"));
