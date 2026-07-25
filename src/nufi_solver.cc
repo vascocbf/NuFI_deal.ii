@@ -193,6 +193,8 @@ void NuFISolver::run() {
 
   std::vector<double> int_E_squared;
   int_E_squared.reserve(Nt);
+  std::vector<double> int_E_squared_times; // <-- add this
+  int_E_squared_times.reserve(Nt);
 
   std::vector<GridStructure<1>> grid_versions;
   std::vector<SolutionSnapshot<1>> phi_history;
@@ -301,10 +303,11 @@ void NuFISolver::run() {
       double plot_start = timer.elapsed();
 
       std::cout << "Saving results...   ";
-      save_f(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
-             Parameters::NV, "results/ftilda_" + std::to_string(it) + ".dat");
+      save_f_binary(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
+                    Parameters::NV,
+                    Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".bin");
       save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
-               "results/rho_" + std::to_string(it) + ".dat");
+               Parameters::PLOT_DIR + "rho_" + std::to_string(it) + ".dat");
 
       save_Efield(it, grid_versions, phi_history);
 
@@ -312,7 +315,9 @@ void NuFISolver::run() {
                                  grid_versions[phi_history[it].grid_version],
                                  phi_history[it].solution);
       int_E_squared.push_back(int_val);
-      save_space_vector(int_E_squared, "electricint", it);
+      int_E_squared_times.push_back(it * Parameters::DT);
+      save_time_series(int_E_squared_times, int_E_squared,
+                       Parameters::PLOT_DIR + "int_E_sqr.dat");
 
       plot_time = timer.elapsed() - plot_start;
       std::cout << "Results saved in " << plot_start << "[s]" << "\n";

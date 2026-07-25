@@ -17,13 +17,9 @@ inline std::vector<double> make_x_eval(size_t Nx) {
 
   double dx = (Parameters::X_DOMAIN_RIGHT - Parameters::X_DOMAIN_LEFT) / Nx;
 
-  for (unsigned int i = 0; i < Nx; ++i) {
+  for (unsigned int i = 0; i < Nx; ++i)
     x_eval_E.push_back(Parameters::X_DOMAIN_LEFT + (i + 0.5) * dx);
-  }
-  // std::vector<double> x_eval(Nx);
-  // const double dx = Parameters::LX / Nx;
-  // for (size_t i = 0; i < Nx; ++i)
-  //   x_eval[i] = Parameters::X_DOMAIN_LEFT + i * dx;
+
   return x_eval_E;
 }
 
@@ -75,13 +71,10 @@ inline std::vector<double> eval(std::vector<double> &X,
 
 inline double integral_space_vector(const GridStructure<1> &grid,
                                     const Vector<double> &solution,
-                                    double dx = Parameters::PLOT_DX,
                                     size_t Nx = Parameters::PLOT_NX) {
   double integral = 0.0;
-  double xmin = Parameters::X_DOMAIN_LEFT;
-  std::vector<double> x_eval(Nx);
-  for (size_t i = 0; i < Nx; ++i)
-    x_eval[i] = xmin + i * dx;
+  std::vector<double> x_eval = make_x_eval(Nx);
+  const double dx = Parameters::LX / Nx;
 
   std::vector<double> tmp = eval(x_eval, grid, solution);
   for (size_t i = 0; i < Nx; ++i)
@@ -91,13 +84,10 @@ inline double integral_space_vector(const GridStructure<1> &grid,
 
 inline double integral_space_vector_squared(const GridStructure<1> &grid,
                                             const Vector<double> &solution,
-                                            double dx = Parameters::PLOT_DX,
                                             size_t Nx = Parameters::PLOT_NX) {
   double integral = 0.0;
-  double xmin = Parameters::X_DOMAIN_LEFT;
-  std::vector<double> x_eval(Nx);
-  for (size_t i = 0; i < Nx; ++i)
-    x_eval[i] = xmin + i * dx;
+  std::vector<double> x_eval = make_x_eval(Nx);
+  const double dx = Parameters::LX / Nx;
 
   std::vector<double> tmp = eval(x_eval, grid, solution);
   for (size_t i = 0; i < Nx; ++i)
