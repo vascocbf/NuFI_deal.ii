@@ -8,7 +8,7 @@
 #include <deal.II/numerics/vector_tools.h>
 #include <vector>
 
-#include "nufi/fields.h" //dont remove
+#include "nufi/fields.h" // dont remove
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
 #include "nufi/poisson_problem.h"

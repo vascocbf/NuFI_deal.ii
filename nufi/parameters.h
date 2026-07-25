@@ -2,6 +2,7 @@
 #define PARAMETERS_H
 
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <string>
 
@@ -21,6 +22,8 @@ constexpr double V_DOMAIN_RIGHT = 10.;
 
 constexpr unsigned int NV = 128;
 constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
+
+constexpr size_t f0_TYPE = 0; // for switch case
 
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 6;
