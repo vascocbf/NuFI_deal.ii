@@ -15,7 +15,7 @@ using namespace dealii;
 template <int dim> struct CellInfo {
   // what needs to be given to evaluator
   typename DoFHandler<dim>::active_cell_iterator cell;
-  // usefull for locator
+  // for locator
   Point<dim> lower;
   Point<dim> upper;
   double h;

@@ -31,6 +31,11 @@ constexpr unsigned int FE_DEGREE = 3;
 constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
+// Adaptive refinement options
+constexpr unsigned int REFINE_FREQUENCY = 30;
+constexpr double REFINEMENT_TOP_FRACTION = 0.8;
+constexpr double REFINEMENT_BOTTOM_FRACTION = 0.1;
+
 // Gauge options
 constexpr double GAUGE_DOMAIN_LEFT = 3.2;
 constexpr double GAUGE_DOMAIN_RIGHT = 3.8;
@@ -42,7 +47,6 @@ constexpr double F0_FACTOR = 0.39894228040143267793994; // 1/sqrt(2pi)
 // NUFI options
 constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
-constexpr unsigned int REFINE_FREQUENCY = 30;
 
 // Plotting options
 constexpr int PLOT_FREQUENCY = 10;

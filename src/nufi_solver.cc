@@ -191,27 +191,15 @@ void NuFISolver::run() {
   using std::abs;
   using std::max;
 
-  // std::unique_ptr<double, decltype(std::free) *> rho{
-  //     reinterpret_cast<double *>(std::aligned_alloc(64, sizeof(double) *
-  //     Nx)),
-  // std::free};
-  //
-  // if (rho == nullptr)
-  //   throw std::bad_alloc{};
-
   std::vector<double> int_E_squared;
   int_E_squared.reserve(Nt);
 
   std::vector<GridStructure<1>> grid_versions;
   std::vector<SolutionSnapshot<1>> phi_history;
 
-  // update_grid_versions(grid_versions, poisson);
-  // update_solution_history(phi_history, poisson,
-  //                         grid_versions.back().grid_version);
-
   std::vector<double> x_eval(Parameters::CALC_NX);
 
-  std::ofstream time_file("results/simulation_time.dat");
+  std::ofstream time_file(Parameters::PLOT_DIR + "simulation_time.dat");
 
   double total_time = 0;
   stopwatch<double> total_timer;
@@ -223,6 +211,9 @@ void NuFISolver::run() {
             << "refine_time "
             << "plot_time"
             << "\n";
+
+  std::ofstream error_file(Parameters::PLOT_DIR + "error_estimate.dat");
+  error_file << "it error_estimate\n";
 
   [[maybe_unused]] const double x_min = Parameters::X_DOMAIN_LEFT;
   [[maybe_unused]] double dx = Parameters::CALC_DX;
@@ -294,6 +285,9 @@ void NuFISolver::run() {
     }
     update_solution_history(phi_history, poisson,
                             grid_versions.back().grid_version);
+
+    error_file << it << " " << poisson.get_error_estimate() << "\n";
+    error_file.flush();
 
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;

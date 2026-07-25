@@ -1,9 +1,7 @@
 #ifndef POISSON_PROBLEM_H
 #define POISSON_PROBLEM_H
 
-#include <cstddef>
 #include <deal.II/base/function.h>
-
 #include <deal.II/base/index_set.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/mpi_remote_point_evaluation.h>
@@ -42,6 +40,7 @@
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/vector_tools.h>
 
+#include <cstddef>
 #include <deal.II/numerics/vector_tools_evaluate.h>
 #include <deal.II/numerics/vector_tools_interpolate.h>
 #include <deal.II/numerics/vector_tools_point_gradient.h>
@@ -49,6 +48,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -91,6 +91,7 @@ public:
     return constraints;
   }
   const CellLocator<dim> &get_locator() const { return cell_locator; }
+  double get_error_estimate() const { return error_estimate; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
                                             unsigned int Nx);
@@ -108,6 +109,7 @@ private:
   void setup_system();
   void assemble_system();
   void solve(size_t it);
+  void estimate_error();
 
   std::function<std::vector<double>(const std::vector<Point<dim>> &)>
       rhs_function;
@@ -124,6 +126,7 @@ private:
   Vector<double> system_rhs;
 
   const bool PRINT_GAUGE_DOF_POSITION = true;
+  double error_estimate = 0.0;
 };
 
 //====//====//
@@ -336,10 +339,6 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
 
   // used for evaluator to avoid running it anytime there is an eval
   cell_locator.rebuild(dof_handler, triangulation);
-
-  // local_solution_buffer.resize(fe.n_dofs_per_cell());
-  // evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
-  // update_gradients);
 }
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
@@ -419,21 +418,15 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
       dof_handler, QGauss<dim - 1>(fe.degree + 1),
       std::map<types::boundary_id, const Function<dim> *>(), solution,
       error_per_cell);
-  GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
-                                                  0.3, 0.03);
 
-  // START: remove refinment flags from edges of domain to alow safe gauge
-  // fixing
-  // for (const auto &cell : triangulation.active_cell_iterators()) {
-  //   const double x = cell->center()[0];
-  //   if (x >= Parameters::X_DOMAIN_RIGHT - .5) {
-  //     cell->clear_refine_flag();
-  //     cell->clear_coarsen_flag();
-  //   }
-  // }
-  // END
+  // GridRefinement::refine_and_coarsen_fixed_number(triangulation,
+  // error_per_cell,
+  //                                                 0.3, 0.03);
+  GridRefinement::refine_and_coarsen_fixed_fraction(
+      triangulation, error_per_cell, Parameters::REFINEMENT_TOP_FRACTION,
+      Parameters::REFINEMENT_BOTTOM_FRACTION,
+      std::numeric_limits<unsigned int>::max(), VectorTools::L2_norm);
 
-  // triangulation.prepare_coarsening_and_refinement();
   triangulation.execute_coarsening_and_refinement();
 
   std::cout << "Refinement Finished..." << "\n";
@@ -448,6 +441,17 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   //                                                    Parameters::PLOT_NX);
   //
   // save_space_vector(Ex, "Ex_after_coarsed", it);
+}
+
+template <int dim> void PoissonProblem<dim>::estimate_error() {
+  Vector<float> error_per_cell(triangulation.n_active_cells());
+
+  KellyErrorEstimator<dim>::estimate(
+      dof_handler, QGauss<dim - 1>(fe.degree + 1),
+      std::map<types::boundary_id, const Function<dim> *>(), solution,
+      error_per_cell);
+
+  error_estimate = error_per_cell.l2_norm();
 }
 
 template <int dim> void PoissonProblem<dim>::solve(size_t it) {
@@ -499,6 +503,7 @@ void PoissonProblem<dim>::solve_step(
   }
   assemble_system();
   solve(it);
+  estimate_error();
 }
 
 // NuFI doesnt use this, kept only for testing PoissonProblem
