@@ -434,13 +434,6 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   std::string grid_file_name =
       Parameters::PLOT_DIR + "grid_" + std::to_string(it);
   save_grid_to_file(grid_file_name);
-
-  // std::vector<double> Ex =
-  // sample_electric_potential(Parameters::X_DOMAIN_LEFT,
-  //                                                    Parameters::X_DOMAIN_RIGHT,
-  //                                                    Parameters::PLOT_NX);
-  //
-  // save_space_vector(Ex, "Ex_after_coarsed", it);
 }
 
 template <int dim> void PoissonProblem<dim>::estimate_error() {

@@ -193,7 +193,7 @@ void NuFISolver::run() {
 
   std::vector<double> int_E_squared;
   int_E_squared.reserve(Nt);
-  std::vector<double> int_E_squared_times; // <-- add this
+  std::vector<double> int_E_squared_times;
   int_E_squared_times.reserve(Nt);
 
   std::vector<GridStructure<1>> grid_versions;
@@ -215,7 +215,8 @@ void NuFISolver::run() {
             << "\n";
 
   std::ofstream error_file(Parameters::PLOT_DIR + "error_estimate.dat");
-  error_file << "it error_estimate\n";
+  error_file << "# nufi Kelly l2 error estimate\n";
+  error_file << "# it l2_error_estimate\n";
 
   [[maybe_unused]] const double x_min = Parameters::X_DOMAIN_LEFT;
   [[maybe_unused]] double dx = Parameters::CALC_DX;
@@ -237,8 +238,9 @@ void NuFISolver::run() {
               << std::endl;
 
     // START: diagnostics
-    // std::cout << "cells = " << poisson.triangulation.n_active_cells() << "\n"
-    //           << " dofs = " << poisson.dof_handler.n_dofs() << "\n";
+    std::cout << "cells = " << poisson.get_triangulation().n_active_cells()
+              << "\n"
+              << " dofs = " << poisson.get_dof_handler().n_dofs() << "\n";
     // double min_h = 1e100;
     // double max_h = 0;
     //
