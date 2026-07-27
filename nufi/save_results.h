@@ -8,27 +8,29 @@
 
 class NuFISolver;
 
-void save_field_1d(const std::vector<double> &x,
-                   const std::vector<double> &values,
-                   const std::string &filepath);
+struct DiagnosticsSnapshot {
+  unsigned int Nx = 0;
+  unsigned int Nv = 0;
+  std::vector<double> x_eval;
+  std::vector<double> v_eval;
+  std::vector<double> f;
+  std::vector<double> rho;
+  std::vector<double> E;
+};
+
+DiagnosticsSnapshot
+compute_diagnostics(const NuFISolver &solver, unsigned int n,
+                    std::vector<GridStructure<1>> &grid_struct,
+                    std::vector<SolutionSnapshot<1>> &phi_history,
+                    unsigned int Nx_out, unsigned int Nv_out);
+
+void save_f(const DiagnosticsSnapshot &snap, const std::string &filepath);
+void save_rho(const DiagnosticsSnapshot &snap, const std::string &filepath);
+void save_Efield(const DiagnosticsSnapshot &snap, const std::string &filepath);
+double compute_int_E_squared(const DiagnosticsSnapshot &snap);
 
 void save_time_series(const std::vector<double> &t,
                       const std::vector<double> &values,
                       const std::string &filepath);
-
-void save_f_binary(const NuFISolver &solver, unsigned int n,
-                   std::vector<GridStructure<1>> &grid_struct,
-                   std::vector<SolutionSnapshot<1>> &phi_history,
-                   unsigned int Nx_out, unsigned int Nv_out,
-                   const std::string &filepath);
-
-void save_rho(const NuFISolver &solver, unsigned int n,
-              std::vector<GridStructure<1>> &grid_struct,
-              std::vector<SolutionSnapshot<1>> &phi_history,
-              unsigned int Nx_out, const std::string &filename);
-
-void save_Efield(unsigned int it, std::vector<GridStructure<1>> &grid_versions,
-                 std::vector<SolutionSnapshot<1>> &phi_history,
-                 unsigned int Nx_out = Parameters::PLOT_NX);
 
 #endif

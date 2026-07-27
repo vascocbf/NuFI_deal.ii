@@ -299,22 +299,22 @@ void NuFISolver::run() {
     //====//====//
     // Plotting //
     //====//====//
+
     if (it % Parameters::PLOT_FREQUENCY == 0) {
       double plot_start = timer.elapsed();
 
       std::cout << "Saving results...   ";
-      save_f_binary(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
-                    Parameters::NV,
-                    Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".bin");
-      save_rho(*this, it, grid_versions, phi_history, Parameters::PLOT_NX,
+      DiagnosticsSnapshot snap =
+          compute_diagnostics(*this, it, grid_versions, phi_history,
+                              Parameters::PLOT_NX, Parameters::NV);
+
+      save_f(snap, Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".dat");
+      save_rho(snap,
                Parameters::PLOT_DIR + "rho_" + std::to_string(it) + ".dat");
+      save_Efield(snap,
+                  Parameters::PLOT_DIR + "E_" + std::to_string(it) + ".dat");
 
-      save_Efield(it, grid_versions, phi_history);
-
-      double int_val = 0.5 * integral_space_vector_squared(
-                                 grid_versions[phi_history[it].grid_version],
-                                 phi_history[it].solution);
-      int_E_squared.push_back(int_val);
+      int_E_squared.push_back(compute_int_E_squared(snap));
       int_E_squared_times.push_back(it * Parameters::DT);
       save_time_series(int_E_squared_times, int_E_squared,
                        Parameters::PLOT_DIR + "int_E_sqr.dat");
@@ -322,6 +322,7 @@ void NuFISolver::run() {
       plot_time = timer.elapsed() - plot_start;
       std::cout << "Results saved in " << plot_start << "[s]" << "\n";
     }
+
     total_time = total_timer.elapsed();
     std::cout << "Time since start = " << total_time << "\n\n";
 

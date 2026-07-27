@@ -38,6 +38,78 @@ void save_field_1d(const std::vector<double> &x,
     file << x[i] << " " << values[i] << "\n";
 }
 
+DiagnosticsSnapshot
+compute_diagnostics(const NuFISolver &solver, unsigned int n,
+                    std::vector<GridStructure<1>> &grid_struct,
+                    std::vector<SolutionSnapshot<1>> &phi_history,
+                    unsigned int Nx_out, unsigned int Nv_out) {
+  DiagnosticsSnapshot snap;
+  snap.Nx = Nx_out;
+  snap.Nv = Nv_out;
+
+  const double vmin = Parameters::V_DOMAIN_LEFT;
+  const double vmax = Parameters::V_DOMAIN_RIGHT;
+  const double dv = (vmax - vmin) / Nv_out;
+
+  snap.x_eval = make_x_eval(Nx_out);
+  snap.v_eval.resize(Nv_out);
+  for (unsigned int j = 0; j < Nv_out; ++j)
+    snap.v_eval[j] = vmin + (j + 0.5) * dv;
+
+  snap.f.resize(static_cast<size_t>(Nx_out) * Nv_out);
+  for (unsigned int j = 0; j < Nv_out; ++j) {
+    std::vector<double> val =
+        solver.eval_f(n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history);
+    std::copy(val.begin(), val.end(), snap.f.begin() + j * Nx_out);
+  }
+
+  snap.rho.assign(Nx_out, 1.0);
+  for (unsigned int j = 0; j < Nv_out; ++j)
+    for (unsigned int i = 0; i < Nx_out; ++i)
+      snap.rho[i] -= snap.f[j * Nx_out + i] * dv;
+
+  std::vector<double> x_copy = snap.x_eval;
+  auto grad_phi = eval(x_copy, grid_struct[phi_history[n].grid_version],
+                       phi_history[n].solution);
+  snap.E.resize(Nx_out);
+  for (unsigned int i = 0; i < Nx_out; ++i)
+    snap.E[i] = -grad_phi[i];
+
+  return snap;
+}
+
+void save_f(const DiagnosticsSnapshot &snap, const std::string &filepath) {
+  ensure_results_dir();
+  std::ofstream file(filepath);
+  if (!file)
+    throw std::runtime_error("save_f: failed to open " + filepath);
+
+  file << "# nufi f(x,v) ascii dump\n";
+  file << "# Nx = " << snap.Nx << " Nv = " << snap.Nv << "\n";
+  file << "# columns: x v f\n";
+  file << std::setprecision(10);
+  for (unsigned int j = 0; j < snap.Nv; ++j)
+    for (unsigned int i = 0; i < snap.Nx; ++i)
+      file << snap.x_eval[i] << " " << snap.v_eval[j] << " "
+           << snap.f[j * snap.Nx + i] << "\n";
+}
+
+void save_rho(const DiagnosticsSnapshot &snap, const std::string &filepath) {
+  save_field_1d(snap.x_eval, snap.rho, filepath);
+}
+
+void save_Efield(const DiagnosticsSnapshot &snap, const std::string &filepath) {
+  save_field_1d(snap.x_eval, snap.E, filepath);
+}
+
+double compute_int_E_squared(const DiagnosticsSnapshot &snap) {
+  const double dx = Parameters::LX / snap.Nx;
+  double integral = 0.0;
+  for (double e : snap.E)
+    integral += e * e;
+  return 0.5 * integral * dx;
+}
+
 void save_time_series(const std::vector<double> &t,
                       const std::vector<double> &values,
                       const std::string &filepath) {
@@ -56,71 +128,4 @@ void save_time_series(const std::vector<double> &t,
   file << std::setprecision(10);
   for (size_t i = 0; i < t.size(); ++i)
     file << t[i] << " " << values[i] << "\n";
-}
-
-void save_f_binary(const NuFISolver &solver, unsigned int n,
-                   std::vector<GridStructure<1>> &grid_struct,
-                   std::vector<SolutionSnapshot<1>> &phi_history,
-                   unsigned int Nx_out, unsigned int Nv_out,
-                   const std::string &filepath) {
-  ensure_results_dir();
-  std::ofstream file(filepath, std::ios::binary);
-  if (!file)
-    throw std::runtime_error("save_f_binary: failed to open " + filepath);
-
-  const double vmin = Parameters::V_DOMAIN_LEFT;
-  const double vmax = Parameters::V_DOMAIN_RIGHT;
-  const double dv = (vmax - vmin) / Nv_out;
-
-  std::vector<double> x_eval = make_x_eval(Nx_out);
-  std::vector<double> v_eval(Nv_out);
-  for (unsigned int j = 0; j < Nv_out; ++j)
-    v_eval[j] = vmin + (j + 0.5) * dv;
-
-  // simple fixed binary layout: magic, Nx, Nv, x[], v[], f[Nv*Nx]
-  const uint32_t magic = 0x4E554649; // "NUFI"
-  const uint64_t nx64 = Nx_out, nv64 = Nv_out;
-
-  file.write(reinterpret_cast<const char *>(&magic), sizeof(magic));
-  file.write(reinterpret_cast<const char *>(&nx64), sizeof(nx64));
-  file.write(reinterpret_cast<const char *>(&nv64), sizeof(nv64));
-  file.write(reinterpret_cast<const char *>(x_eval.data()),
-             x_eval.size() * sizeof(double));
-  file.write(reinterpret_cast<const char *>(v_eval.data()),
-             v_eval.size() * sizeof(double));
-
-  std::vector<double> val(Nx_out);
-  for (unsigned int j = 0; j < Nv_out; ++j) {
-    val = solver.eval_f(n, x_eval, v_eval[j], grid_struct, phi_history);
-    file.write(reinterpret_cast<const char *>(val.data()),
-               val.size() * sizeof(double));
-  }
-}
-
-void save_rho(const NuFISolver &solver, unsigned int n,
-              std::vector<GridStructure<1>> &grid_struct,
-              std::vector<SolutionSnapshot<1>> &phi_history,
-              unsigned int Nx_out, const std::string &filename) {
-  std::vector<double> x_eval = make_x_eval(Nx_out);
-  std::vector<double> rho =
-      solver.eval_rho(n, x_eval, grid_struct, phi_history);
-  save_field_1d(x_eval, rho, filename);
-}
-
-void save_Efield(unsigned int it, std::vector<GridStructure<1>> &grid_versions,
-                 std::vector<SolutionSnapshot<1>> &phi_history,
-                 unsigned int Nx_out) {
-  std::vector<double> x_eval_E = make_x_eval(Nx_out);
-
-  auto grad_phi = eval(x_eval_E, grid_versions[phi_history[it].grid_version],
-                       phi_history[it].solution);
-
-  std::vector<double> E(x_eval_E.size());
-  for (size_t i = 0; i < x_eval_E.size(); ++i)
-    E[i] = -grad_phi[i];
-
-  save_field_1d(x_eval_E, E, "results/E_" + std::to_string(it) + ".dat");
-
-  std::cout << "Saving iteration " << it << " using grid version "
-            << phi_history[it].grid_version << "\n\n";
 }
