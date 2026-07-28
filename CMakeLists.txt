@@ -23,7 +23,6 @@ find_package(OpenMP REQUIRED)
 add_library(nufi_lib
   src/nufi_solver.cc
   src/save_results.cc
-  #  src/blas.cc
 )
 
 target_include_directories(nufi_lib PUBLIC

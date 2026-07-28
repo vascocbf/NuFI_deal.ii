@@ -1,10 +1,11 @@
-.ipynb_checkpoints/
-CMakeCache.txt
-compile_commands.json
-CMakeFiles/
+build/
+
 results/
+
 saved_sims/
-nufi_poisson
+
+.ipynb_checkpoints/
 *.ipynb
+
 .todo-txt/
 Notes/
