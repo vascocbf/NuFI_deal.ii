@@ -155,18 +155,23 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
 
   const double dv =
       (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
-
   const double v_min = Parameters::V_DOMAIN_LEFT + 0.5 * dv;
 
-  std::vector<double> integral(x_size, 0.0);
-  std::vector<double> tmp_int(x_size);
+  std::vector<double> partial(static_cast<size_t>(Nv) * x_size);
 
+#pragma omp parallel for
   for (unsigned int i = 0; i < Nv; ++i) {
-    tmp_int = eval_ftilda(n, X, v_min + i * dv, grid_struct,
-                          phi_history); // used eval_ftilda once per i
-    for (size_t ii = 0; ii < x_size; ++ii)
-      integral[ii] += tmp_int[ii];
+    std::vector<double> tmp_int =
+        eval_ftilda(n, X, v_min + i * dv, grid_struct,
+                    phi_history); // used eval_ftilda once per i
+    std::copy(tmp_int.begin(), tmp_int.end(),
+              partial.begin() + static_cast<size_t>(i) * x_size);
   }
+
+  std::vector<double> integral(x_size, 0.0);
+  for (unsigned int i = 0; i < Nv; ++i)
+    for (size_t ii = 0; ii < x_size; ++ii)
+      integral[ii] += partial[static_cast<size_t>(i) * x_size + ii];
 
   for (size_t i = 0; i < x_size; ++i)
     integral[i] = 1 - integral[i] * dv;
@@ -235,7 +240,7 @@ void NuFISolver::run() {
 
     std::cout << "Timestep " << it << " / " << Nt
               << " (simulation time = " << it * Parameters::DT << ")"
-              << std::endl;
+              << "\n";
 
     // START: diagnostics
     std::cout << "cells = " << poisson.get_triangulation().n_active_cells()

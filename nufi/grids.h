@@ -127,7 +127,7 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
 
       if (PRINT_GAUGE_DOF_POSITION)
         std::cout << " gauge_dof = " << gauge_dof
-                  << " gauge_point = " << point[0] << std::endl;
+                  << " gauge_point = " << point[0] << "\n";
       break;
     }
   }

@@ -4,7 +4,6 @@
 #include "nufi/grids.h"
 #include "nufi/nufi_solver.h"
 #include "nufi/parameters.h"
-#include "nufi/poisson_problem.h"
 #include <cstddef>
 #include <deal.II/numerics/solution_transfer.h>
 #include <filesystem>
@@ -57,6 +56,7 @@ compute_diagnostics(const NuFISolver &solver, unsigned int n,
     snap.v_eval[j] = vmin + (j + 0.5) * dv;
 
   snap.f.resize(static_cast<size_t>(Nx_out) * Nv_out);
+#pragma omp parallel for
   for (unsigned int j = 0; j < Nv_out; ++j) {
     std::vector<double> val =
         solver.eval_f(n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history);
