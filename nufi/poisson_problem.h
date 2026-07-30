@@ -338,7 +338,8 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   system_rhs.reinit(dof_handler.n_dofs());
 
   // used for evaluator to avoid running it anytime there is an eval
-  cell_locator.rebuild(dof_handler, triangulation);
+  cell_locator.rebuild(dof_handler, triangulation,
+                       Parameters::GLOBAL_REFINEMENT);
 }
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
