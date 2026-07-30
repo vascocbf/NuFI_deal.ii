@@ -37,12 +37,18 @@ inline double f0(const double x, const double v,
 
   double result;
 
+  double prefactor;
+  double gaussian;
+
   switch (f0_type) {
   case 0:
-
-    const double prefactor =
-        Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
-    const double gaussian = v * v * std::exp(-0.5 * v * v);
+    prefactor = Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
+    gaussian = v * v * std::exp(-0.5 * v * v);
+    result = prefactor * gaussian;
+  case 1:
+    // test
+    prefactor = Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
+    gaussian = v * v * std::exp(-0.5 * v * v);
     result = prefactor * gaussian;
   }
 
