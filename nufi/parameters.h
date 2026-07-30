@@ -23,10 +23,15 @@ constexpr double V_DOMAIN_RIGHT = 10.;
 constexpr unsigned int NV = 128;
 constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 
-constexpr size_t f0_TYPE = 0; // for switch case
+// f0_TYPE:
+// 0 -> twos-stream
+// 1 -> landau-damping
+// 2 -> maxwellian
+// 3 -> bump-on-tail
+constexpr size_t f0_TYPE = 3;
 
 // deal.ii options
-constexpr unsigned int GLOBAL_REFINEMENT = 6;
+constexpr unsigned int GLOBAL_REFINEMENT = 7;
 constexpr unsigned int FE_DEGREE = 3;
 constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;

@@ -35,21 +35,51 @@ inline double f0(const double x, const double v,
   const double eps = Parameters::EPS;
   const double k = Parameters::WAVE_NR;
 
-  double result;
+  const double factor = Parameters::F0_FACTOR;
+
+  auto maxwell = [factor](double u, double v = 0, double v_th = 1) {
+    return 1 / v_th * factor *
+           std::exp(-0.5 * (u - v) * (u - v) / (v_th * v_th));
+  };
 
   double prefactor;
-  double gaussian;
+  double computed_max;
+  double result;
 
   switch (f0_type) {
-  case 0:
-    prefactor = Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
-    gaussian = v * v * std::exp(-0.5 * v * v);
-    result = prefactor * gaussian;
-  case 1:
-    // test
-    prefactor = Parameters::F0_FACTOR * (1.0 + eps * std::cos(k * x));
-    gaussian = v * v * std::exp(-0.5 * v * v);
-    result = prefactor * gaussian;
+  case 0: // two-stream
+  {
+    computed_max = maxwell(v);
+    prefactor = (1.0 + eps * std::cos(k * x)) * v * v;
+    result = prefactor * computed_max;
+    break;
+  }
+  case 1: // Landau-damping
+  {
+    computed_max = maxwell(v);
+    prefactor = (1.0 + eps * std::cos(k * x));
+    result = prefactor * computed_max;
+    break;
+  }
+  case 2: // Maxwellian
+  {
+    result = maxwell(v);
+    break;
+  }
+  case 3: // Bump-on tail
+  {
+    const double beam_density = 0.05;
+    const double beam_v_th = 0.2;
+    const double beam_v = 3;
+    const double alpha = beam_density / (1 - beam_density);
+
+    const double beam_max = maxwell(v, beam_v, beam_v_th);
+    computed_max = maxwell(v);
+    result = (1 - alpha) * computed_max + alpha * beam_max;
+    break;
+  }
+  default:
+    throw std::invalid_argument("Invalid f0_type");
   }
 
   return result;
