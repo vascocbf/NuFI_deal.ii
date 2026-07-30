@@ -2,116 +2,157 @@
 #define CELLS_H
 
 #include <algorithm>
-#include <boost/geometry/geometries/concepts/point_concept.hpp>
+#include <cmath>
+#include <limits>
+
+#include <deal.II/base/exceptions.h>
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/point.h>
 #include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/tria.h>
-#include <vector>
 
 using namespace dealii;
 
-template <int dim> struct CellInfo {
-  // what needs to be given to evaluator
-  typename DoFHandler<dim>::active_cell_iterator cell;
-  // for locator
-  Point<dim> lower;
-  Point<dim> upper;
-  double h;
-};
+// Current Locator needs Grid to be a hypercube !!
 
 template <int dim> struct CellLocation {
-  const CellInfo<dim> *info;
+  using CellIterator = typename DoFHandler<dim>::cell_iterator;
+
+  CellIterator cell;
   Point<dim> reference_point;
 };
 
 template <int dim> class CellLocator {
 public:
-  using CellIterator = typename DoFHandler<dim>::active_cell_iterator;
-
   void rebuild(const DoFHandler<dim> &dof_handler,
                const Triangulation<dim> &triangulation);
-  CellLocation<dim> locate(const Point<dim> &p) const;
 
-  const std::vector<Point<dim>> &get_cell_centers() const;
+  CellLocation<dim> locate(const Point<dim> &point) const;
 
 private:
-  std::vector<CellInfo<dim>> cells;
-  std::vector<Point<dim>> cell_centers;
+  const DoFHandler<dim> *dof_handler_ = nullptr;
+
+  Point<dim> domain_lower_;
+  Point<dim> domain_upper_;
 };
 
 template <int dim>
 void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
                                const Triangulation<dim> &triangulation) {
+  AssertThrow(&dof_handler.get_triangulation() == &triangulation,
+              ExcMessage("CellLocator::rebuild(): DoFHandler and Triangulation "
+                         "do not refer to the same mesh."));
 
-  cells.clear();
-  cells.reserve(triangulation.n_active_cells());
+  auto root = dof_handler.begin(0);
 
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    CellInfo<dim> info;
+  AssertThrow(
+      root != dof_handler.end(0),
+      ExcMessage("CellLocator::rebuild(): triangulation has no level-zero "
+                 "cell."));
 
-    info.cell = cell;
-    info.lower = cell->vertex(0);
-    info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
+  auto after_root = root;
+  ++after_root;
 
-    info.h = info.upper[0] - info.lower[0];
+  AssertThrow(
+      after_root == dof_handler.end(0),
+      ExcMessage("CellLocator currently requires exactly one coarse cell."));
 
-    cells.push_back(info);
+  dof_handler_ = &dof_handler;
+
+  for (unsigned int d = 0; d < dim; ++d) {
+    domain_lower_[d] = std::numeric_limits<double>::max();
+    domain_upper_[d] = std::numeric_limits<double>::lowest();
   }
 
-  std::sort(cells.begin(), cells.end(),
-            [](const CellInfo<dim> &a, const CellInfo<dim> &b) {
-              return a.lower[0] < b.lower[0];
-            });
+  for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell; ++v)
+    for (unsigned int d = 0; d < dim; ++d) {
+      domain_lower_[d] = std::min(domain_lower_[d], root->vertex(v)[d]);
 
-  cell_centers.clear();
-  cell_centers.reserve(cells.size());
+      domain_upper_[d] = std::max(domain_upper_[d], root->vertex(v)[d]);
+    }
 
-  for (const auto &cell : cells) {
-    Point<dim> center;
-    for (unsigned int d = 0; d < dim; ++d)
-      center[d] = 0.5 * (cell.lower[d] + cell.upper[d]);
+  for (unsigned int d = 0; d < dim; ++d) {
+    const double length = domain_upper_[d] - domain_lower_[d];
 
-    cell_centers.push_back(center);
+    AssertThrow(length > 0.0,
+                ExcMessage("CellLocator::rebuild(): coarse-cell domain has "
+                           "non-positive extent."));
+
+    const double scale =
+        std::max({1.0, std::abs(domain_lower_[d]), std::abs(domain_upper_[d])});
+
+    const double tolerance =
+        100.0 * std::numeric_limits<double>::epsilon() * scale;
+
+    for (unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell; ++v) {
+      const double coordinate = root->vertex(v)[d];
+
+      const bool lies_on_lower =
+          std::abs(coordinate - domain_lower_[d]) <= tolerance;
+
+      const bool lies_on_upper =
+          std::abs(coordinate - domain_upper_[d]) <= tolerance;
+
+      AssertThrow(
+          lies_on_lower || lies_on_upper,
+          ExcMessage(
+              "CellLocator requires an axis-aligned hypercube coarse cell."));
+    }
   }
 }
 
 template <int dim>
-CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
-  static_assert(dim == 1,
-                "Current CellLocator implementation only supports 1D.");
+CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &point) const {
+  AssertThrow(
+      dof_handler_ != nullptr,
+      ExcMessage("CellLocator::locate(): rebuild() has not been called."));
 
-  AssertThrow(!cells.empty(),
-              ExcMessage("CellLocator::rebuild() has not been called."));
+  Point<dim> reference_point;
 
-  const double x = p[0];
+  for (unsigned int d = 0; d < dim; ++d) {
+    const double length = domain_upper_[d] - domain_lower_[d];
 
-  auto it = std::upper_bound(cells.begin(), cells.end(), x,
-                             [](double value, const CellInfo<dim> &cell) {
-                               return value < cell.lower[0];
-                             }); // returns cell to the right of cell with x
+    const double shifted = point[d] - domain_lower_[d];
 
-  if (it == cells.begin())
-    it = cells.begin();
-  else
-    --it;
+    double periodic_offset = shifted - length * std::floor(shifted / length);
 
-  // Safety check: make sure the point is really inside this cell
-  AssertThrow(x >= it->lower[0] - 1e-12 && x <= it->upper[0] + 1e-12,
-              ExcMessage("CellLocator failed to find containing cell."));
+    if (periodic_offset < 0.0)
+      periodic_offset += length;
 
-  CellLocation<dim> location;
+    if (periodic_offset >= length)
+      periodic_offset = 0.0;
 
-  location.info = &(*it);
-  location.reference_point[0] = (p[0] - it->lower[0]) / it->h;
+    reference_point[d] = periodic_offset / length;
+  }
 
-  return location;
+  auto cell = dof_handler_->begin(0);
+
+  while (cell->has_children()) {
+    AssertThrow(
+        cell->n_children() == GeometryInfo<dim>::max_children_per_cell,
+        ExcMessage(
+            "CellLocator currently supports isotropic refinement only."));
+
+    const unsigned int child_index =
+        GeometryInfo<dim>::child_cell_from_point(reference_point);
+
+    reference_point = GeometryInfo<dim>::cell_to_child_coordinates(
+        reference_point, child_index);
+
+    cell = cell->child(child_index);
+  }
+
+  AssertThrow(
+      cell->is_active(),
+      ExcMessage("CellLocator tree traversal did not finish on an active "
+                 "cell."));
+
+  AssertThrow(
+      GeometryInfo<dim>::is_inside_unit_cell(reference_point, 1e-12),
+      ExcMessage(
+          "CellLocator produced a reference point outside the unit cell."));
+
+  return CellLocation<dim>{cell, reference_point};
 }
 
-template <int dim>
-const std::vector<Point<dim>> &CellLocator<dim>::get_cell_centers() const {
-  return cell_centers;
-}
-
-#endif // !CELLS_H
+#endif // CELLS_H

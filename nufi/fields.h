@@ -89,20 +89,18 @@ inline double f0(const double x, const double v,
 inline std::vector<double> eval(std::vector<double> &X,
                                 const GridStructure<1> &grid,
                                 const Vector<double> &solution) noexcept {
+
   AssertThrow(grid.dof_handler->n_dofs() == solution.size(),
               ExcMessage("@ eval(...) grid's number of DoFs doesn't correspond "
                          "to solution's size"));
-  size_t x_size = X.size();
-  std::vector<Point<1>> Points(x_size);
 
-  for (size_t i = 0; i < x_size; ++i) {
-    X[i] = X[i] - Parameters::X_DOMAIN_LEFT;
-    X[i] = X[i] - Parameters::LX * std::floor(X[i] * Parameters::LX_INV);
+  const size_t x_size = X.size();
+  std::vector<Point<1>> points(x_size);
 
-    Points[i][0] = X[i];
-  }
+  for (size_t i = 0; i < x_size; ++i)
+    points[i][0] = X[i];
 
-  return grid.eval_vector_grad(solution, Points);
+  return grid.eval_vector_grad(solution, points);
 }
 
 inline double integral_space_vector(const GridStructure<1> &grid,

@@ -28,7 +28,7 @@ constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 // 1 -> landau-damping
 // 2 -> maxwellian
 // 3 -> bump-on-tail
-constexpr size_t f0_TYPE = 3;
+constexpr size_t f0_TYPE = 0;
 
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 7;
