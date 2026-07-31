@@ -56,6 +56,7 @@
 #include "nufi/cells.h"
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
+#include "nufi/stopwatch.h"
 #include "omp.h"
 
 void save_space_vector(const std::vector<double> &vals,
@@ -70,8 +71,8 @@ public:
   PoissonProblem(unsigned int degree);
 
   void initialize();
-  void solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
-                  bool refining = false);
+  double solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
+                    bool refining = false);
   void coarse_and_refine_grid(size_t it);
   void setup_constraints(AffineConstraints<double> &constraints);
   void run();
@@ -492,16 +493,21 @@ template <int dim> void PoissonProblem<dim>::initialize() {
 }
 
 template <int dim>
-void PoissonProblem<dim>::solve_step(
+double PoissonProblem<dim>::solve_step(
     size_t it, std::vector<GridStructure<1>> &grid_versions, bool refining) {
+  double refining_time = 0.0;
   if (refining) {
+    stopwatch<double> refining_timer;
     coarse_and_refine_grid(it);
     setup_system();
     update_grid_versions(grid_versions, *this);
+    refining_time = refining_timer.elapsed();
   }
   assemble_system();
   solve(it);
   estimate_error();
+
+  return refining_time;
 }
 
 // NuFI doesnt use this, kept only for testing PoissonProblem
