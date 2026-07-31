@@ -427,6 +427,11 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
       Parameters::REFINEMENT_BOTTOM_FRACTION,
       std::numeric_limits<unsigned int>::max(), VectorTools::L2_norm);
 
+  // Avoid coarsing below GLOBAL_REFINEMENT level for CellLocator
+  for (const auto &cell : triangulation.active_cell_iterators())
+    if (cell->level() <= static_cast<int>(Parameters::GLOBAL_REFINEMENT))
+      cell->clear_coarsen_flag();
+
   triangulation.execute_coarsening_and_refinement();
 
   std::cout << "Refinement Finished..." << "\n";
