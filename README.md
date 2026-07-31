@@ -11,7 +11,9 @@ dimensions: 1x1v
 
 notes:
 
-- about 3 times slower than previous locator
+- Locator not optimized for 1d.
+- works for higher dimensions
+-
 
 status: Working, to be re-reviewed
 
