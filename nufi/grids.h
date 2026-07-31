@@ -140,8 +140,7 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
   grid.constraints->close();
 
   grid.locator = std::make_unique<CellLocator<dim>>();
-  grid.locator->rebuild(*grid.dof_handler, *grid.triangulation,
-                        Parameters::GLOBAL_REFINEMENT);
+  grid.locator->rebuild(*grid.dof_handler, *grid.triangulation);
 
   // START: diagnostics
   AssertThrow(
