@@ -286,8 +286,8 @@ void NuFISolver::run() {
 
     if (it % Parameters::REFINE_FREQUENCY == 0) {
       // if (it == 0) {
-      poisson.solve_step(it, grid_versions, true);
-      compute_time = timer.elapsed() - compute_start;
+      refine_time = poisson.solve_step(it, grid_versions, true);
+      compute_time = timer.elapsed() - compute_start - refine_time;
     } else {
       poisson.solve_step(it, grid_versions, false);
       compute_time = timer.elapsed() - compute_start;
