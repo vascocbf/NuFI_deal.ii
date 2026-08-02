@@ -9,20 +9,18 @@ ______________________________________________________________________
 
 dimensions: 1x1v
 
+status: builds, runs
+
 notes:
 
+- -O3 compile flag accelerated runtime about 100x
 - Locator not optimized for 1d.
-- works for higher dimensions
+- Works for higher dimensions (to be tested)
 - locator up to O(dim * Max_depth)
--
 
-status: Working
-
-Refinement working:
-
-- grid versions saved on a vector
-- solutions point to a version of the grid
-
-todo:
+to-do:
 
 - add ions
+- for 1x2v add electro-magnetic
+- test other f0 s
+- test longer simulations with more plotted points
