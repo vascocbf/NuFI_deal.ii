@@ -18,6 +18,7 @@
 #include <deal.II/numerics/vector_tools.h>
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 using namespace dealii;
@@ -25,9 +26,6 @@ using namespace dealii;
 template <int dim> class PoissonProblem;
 
 template <int dim> struct GridStructure {
-  //==//==//
-  // Vars //
-  //==//==//
   std::unique_ptr<Triangulation<dim>> triangulation;
   std::unique_ptr<DoFHandler<dim>> dof_handler;
   std::unique_ptr<MappingQ<dim>> mapping;
@@ -41,28 +39,48 @@ template <int dim> struct GridStructure {
   eval_vector_grad(const Vector<double> &solution,
                    const std::vector<Point<dim>> &points) const {
 
-    std::vector<double> values(points.size());
+    const unsigned int n_points = points.size();
+    std::vector<double> values(n_points);
+
+    std::vector<CellLocation<dim>> locations(n_points);
+    for (unsigned int p = 0; p < n_points; ++p)
+      locations[p] = locator->locate(points[p]);
+
+    std::unordered_map<unsigned int, std::vector<unsigned int>> cell_to_indices;
+    for (unsigned int p = 0; p < n_points; ++p)
+      cell_to_indices[locations[p].cell->active_cell_index()].push_back(p);
+
+    std::vector<typename DoFHandler<dim>::active_cell_iterator> cells;
+    std::vector<std::vector<unsigned int>> groups;
+    cells.reserve(cell_to_indices.size());
+    groups.reserve(cell_to_indices.size());
+    for (auto &kv : cell_to_indices) {
+      groups.push_back(std::move(kv.second));
+      cells.push_back(locations[groups.back().front()].cell);
+    }
 
 #pragma omp parallel
     {
       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
       FEPointEvaluation<dim, dim> evaluator(*mapping, *fe, update_gradients);
+
 #pragma omp for
-      for (unsigned int p = 0; p < points.size(); ++p) {
+      for (long c = 0; c < static_cast<long>(cells.size()); ++c) {
+        const auto &cell = cells[c];
+        const auto &idxs = groups[c];
 
-        const auto cell_location = locator->locate(points[p]);
+        std::vector<Point<dim>> unit_points(idxs.size());
+        for (size_t k = 0; k < idxs.size(); ++k)
+          unit_points[k] = locations[idxs[k]].reference_point;
 
-        cell_location.cell->get_dof_values(solution,
-                                           local_solution_buffer.begin(),
-                                           local_solution_buffer.end());
+        cell->get_dof_values(solution, local_solution_buffer.begin(),
+                             local_solution_buffer.end());
 
-        evaluator.reinit(
-            cell_location.cell,
-            ArrayView<const Point<dim>>(&cell_location.reference_point, 1));
-
+        evaluator.reinit(cell, ArrayView<const Point<dim>>(unit_points));
         evaluator.evaluate(local_solution_buffer, EvaluationFlags::gradients);
 
-        values[p] = evaluator.get_gradient(0)[0];
+        for (size_t k = 0; k < idxs.size(); ++k)
+          values[idxs[k]] = evaluator.get_gradient(k)[0];
       }
     }
     return values;
