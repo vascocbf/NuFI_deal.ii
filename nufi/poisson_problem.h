@@ -297,19 +297,16 @@ void PoissonProblem<dim>::setup_constraints(
 
   types::global_dof_index gauge_dof = numbers::invalid_dof_index;
 
-  // Search only inside the protected region
   for (const auto &[dof, point] : support_points) {
     if (constraints.is_constrained(dof))
       continue;
-    const double x = point[0];
-    if (x <= Parameters::X_DOMAIN_LEFT + .5) {
-      gauge_dof = dof;
 
-      if (PRINT_GAUGE_DOF_POSITION)
-        std::cout << " gauge_dof = " << gauge_dof
-                  << " gauge_point = " << point[0] << std::endl;
-      break;
-    }
+    gauge_dof = dof;
+
+    if (PRINT_GAUGE_DOF_POSITION)
+      std::cout << " gauge_dof = " << gauge_dof << " gauge_point = " << point[0]
+                << std::endl;
+    break;
   }
 
   Assert(gauge_dof != numbers::invalid_dof_index,

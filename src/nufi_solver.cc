@@ -38,7 +38,6 @@ std::vector<double> NuFISolver::eval_ftilda(
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
       results[i] = f0(X[i], U[i]);
-    // reset_x_eval(X);
     return results;
   }
 
@@ -86,7 +85,6 @@ std::vector<double> NuFISolver::eval_ftilda(
   }
   for (size_t i = 0; i < x_size; ++i)
     results[i] = f0(X[i], U[i]);
-  // reset_x_eval(X);
   return results;
 }
 
@@ -102,7 +100,6 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
       results[i] = f0(X[i], U[i]);
-    // reset_x_eval(X);
     return results;
   }
 
@@ -142,7 +139,6 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
 
   for (size_t i = 0; i < x_size; ++i)
     results[i] = f0(X[i], U[i]);
-  // reset_x_eval(X);
   return results;
 }
 
