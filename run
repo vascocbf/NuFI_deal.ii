@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 #
-# profile_flamegraph.sh
-#
 # Runs ./build/nufi_poisson under `perf record`, then converts the
 # result into a flamegraph. Run this from the project root (".").
 #
-# All profiling artifacts are written to ./results/perf/ so they don't
-# collide with the simulation's own output files in ./results/
-# (nufi_poisson clears regular files in "results/" at the start of
-# main(), see main.cc's clear_results_directory()).
+# All profiling artifacts are written to ./results/perf/
 
 set -euo pipefail
 
@@ -34,12 +29,6 @@ if ! command -v perf >/dev/null 2>&1; then
   exit 1
 fi
 
-# perf needs kernel.perf_event_paranoid low enough to record kernel symbols
-# and full call graphs. -1 is fully open; most distros default to 1-4.
-# This only sets it for the current boot (same effect as writing directly
-# to /proc/sys/kernel/perf_event_paranoid) -- it does NOT persist, and does
-# NOT touch /etc/sysctl.conf. Override the target with:
-#   PERF_EVENT_PARANOID=0 ./profile_flamegraph.sh
 PARANOID_PATH="/proc/sys/kernel/perf_event_paranoid"
 DESIRED_PARANOID="${PERF_EVENT_PARANOID:--1}"
 
@@ -65,12 +54,6 @@ FLAMEGRAPH_OUT="${OUT_DIR}/flamegraph.svg"
 echo "==> Recording with perf (-F ${PERF_FREQ}) ..."
 echo "    (Ctrl+C stops the binary early and still runs the rest of the pipeline)"
 
-# perf record catches SIGINT itself, finalizes perf.data, and exits -- but
-# bash's default non-interactive behavior is to terminate the *script* the
-# moment it sees SIGINT, and `set -e` would abort on perf record's non-zero
-# exit status anyway. Temporarily ignore SIGINT at the script level and
-# capture the exit code manually so an early Ctrl+C just moves on to
-# generating the flamegraph from whatever was captured.
 set +e
 trap '' SIGINT
 perf record -F "${PERF_FREQ}" -g -o "${PERF_DATA}" -- "${BINARY}"
