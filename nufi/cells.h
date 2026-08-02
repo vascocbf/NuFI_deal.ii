@@ -1,4 +1,4 @@
-#ifndef CELLS_H
+#fndef CELLS_H
 #define CELLS_H
 
 #include <array>
@@ -123,9 +123,6 @@ CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
   typename Triangulation<dim>::cell_iterator cell = base_cells[idx];
   xi = xi_local;
 
-  // Step 4: continue descending only through ADAPTIVE refinement beyond
-  // the base level -- this loop now only runs `depth - base_level` times
-  // instead of `depth` times.
   while (cell->has_children()) {
     const unsigned int child_index =
         GeometryInfo<dim>::child_cell_from_point(xi);

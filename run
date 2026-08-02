@@ -12,6 +12,7 @@ BINARY="./build/nufi_poisson"
 FLAMEGRAPH_DIR="${HOME}/.local/bin/FlameGraph"
 OUT_DIR="./results/perf"
 PERF_FREQ=99
+TITLE="${FLAMEGRAPH_TITLE:-NuFI-deal.II FlameGraph}"
 
 # ---- checks -------------------------------------------------------------
 if [[ ! -x "${BINARY}" ]]; then
@@ -77,7 +78,7 @@ echo "==> Collapsing stacks ..."
 "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" "${PERF_SCRIPT_OUT}" > "${FOLDED_OUT}"
 
 echo "==> Building flamegraph ..."
-"${FLAMEGRAPH_DIR}/flamegraph.pl" "${FOLDED_OUT}" > "${FLAMEGRAPH_OUT}"
+"${FLAMEGRAPH_DIR}/flamegraph.pl" --title="${TITLE}" "${FOLDED_OUT}" > "${FLAMEGRAPH_OUT}"
 
 echo "==> Done."
 echo "    perf.data   : ${PERF_DATA}"
