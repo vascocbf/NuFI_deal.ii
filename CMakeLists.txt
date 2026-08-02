@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.13.4)
-
 project(nufi_poisson)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+endif()
 
 find_package(deal.II 9.6.0
   HINTS ${deal.II_DIR} ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR}
@@ -35,6 +38,8 @@ target_link_libraries(nufi_lib
   OpenMP::OpenMP_CXX
 ) 
 
+target_compile_options(nufi_lib PRIVATE -O3)
+
 # -------------------------
 
 add_executable(nufi_poisson
@@ -46,5 +51,6 @@ target_link_libraries(nufi_poisson
   OpenMP::OpenMP_CXX
 )
 
-
 deal_ii_setup_target(nufi_poisson)
+
+target_compile_options(nufi_poisson PRIVATE -O3)
