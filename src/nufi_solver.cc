@@ -200,8 +200,6 @@ void NuFISolver::run() {
   std::vector<GridStructure<1>> grid_versions;
   std::vector<SolutionSnapshot<1>> phi_history;
 
-  std::vector<double> x_eval(Parameters::CALC_NX);
-
   std::ofstream time_file(Parameters::PLOT_DIR + "simulation_time.dat");
 
   double total_time = 0;
@@ -219,13 +217,9 @@ void NuFISolver::run() {
   error_file << "# nufi Kelly l2 error estimate\n";
   error_file << "# it l2_error_estimate\n";
 
-  [[maybe_unused]] const double x_min = Parameters::X_DOMAIN_LEFT;
-  [[maybe_unused]] double dx = Parameters::CALC_DX;
-
   //====//====//
   // Time loop//
   //====//====//
-
   for (unsigned int it = 0; it < Nt; ++it) {
     stopwatch<double> timer;
 
@@ -242,35 +236,10 @@ void NuFISolver::run() {
     std::cout << "cells = " << poisson.get_triangulation().n_active_cells()
               << "\n"
               << " dofs = " << poisson.get_dof_handler().n_dofs() << "\n";
-    // double min_h = 1e100;
-    // double max_h = 0;
-    //
-    // for (auto cell : poisson.triangulation.active_cell_iterators()) {
-    //   min_h = std::min(min_h, cell->diameter());
-    //   max_h = std::max(max_h, cell->diameter());
-    // }
-    //
-    // std::cout << "h ratio = " << max_h / min_h << std::endl;
-    // std::vector<double> x = make_x_eval(Parameters::CALC_NX);
-    // auto rho = eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
-    //
-    // double mean = 0;
-    //
-    // for (auto r : rho)
-    //   mean += r;
-    //
-    // mean /= rho.size();
-    //
-    // std::cout << "rho mean = " << mean << "\n";
-    // std::cout << "rho min = " << *std::min_element(rho.begin(), rho.end())
-    //           << "\n";
-    // std::cout << "rho max = " << *std::max_element(rho.begin(), rho.end())
-    //           << "\n";
     // END: diagnostics
 
     double compute_start = timer.elapsed();
     // compute rho
-    //
     poisson.set_rhs_function([&](const std::vector<Point<1>> &points) {
       std::vector<double> x(points.size());
 
@@ -281,7 +250,6 @@ void NuFISolver::run() {
     });
 
     if (it % Parameters::REFINE_FREQUENCY == 0) {
-      // if (it == 0) {
       refine_time = poisson.solve_step(it, grid_versions, true);
       compute_time = timer.elapsed() - compute_start - refine_time;
     } else {

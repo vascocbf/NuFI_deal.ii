@@ -14,9 +14,6 @@ constexpr double X_DOMAIN_RIGHT = 4 * M_PI;
 constexpr double LX = std::abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT);
 constexpr double LX_INV = 1 / LX;
 
-constexpr size_t CALC_NX = 512;
-constexpr double CALC_DX = LX / CALC_NX;
-
 constexpr double V_DOMAIN_LEFT = -10.;
 constexpr double V_DOMAIN_RIGHT = 10.;
 
@@ -31,7 +28,7 @@ constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 constexpr size_t f0_TYPE = 1;
 
 // deal.ii options
-constexpr unsigned int GLOBAL_REFINEMENT = 7;
+constexpr unsigned int GLOBAL_REFINEMENT = 8;
 constexpr unsigned int FE_DEGREE = 3;
 constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
@@ -55,7 +52,7 @@ constexpr unsigned int TMAX = 100;
 
 // Plotting options
 constexpr int PLOT_FREQUENCY = 10;
-constexpr size_t PLOT_NX = CALC_NX;
+constexpr size_t PLOT_NX = 512;
 constexpr double PLOT_DX = LX / PLOT_NX;
 const std::string PLOT_DIR = "results/";
 } // namespace Parameters
