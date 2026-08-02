@@ -72,12 +72,12 @@ template <int dim> struct GridStructure {
 
         const auto cell_location = locator->locate(points[p]);
 
-        cell_location.info->cell->get_dof_values(solution,
-                                                 local_solution_buffer.begin(),
-                                                 local_solution_buffer.end());
+        cell_location.cell->get_dof_values(solution,
+                                           local_solution_buffer.begin(),
+                                           local_solution_buffer.end());
 
         evaluator.reinit(
-            cell_location.info->cell,
+            cell_location.cell,
             ArrayView<const Point<dim>>(&cell_location.reference_point, 1));
 
         evaluator.evaluate(local_solution_buffer, EvaluationFlags::gradients);
@@ -127,7 +127,7 @@ GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
 
       if (PRINT_GAUGE_DOF_POSITION)
         std::cout << " gauge_dof = " << gauge_dof
-                  << " gauge_point = " << point[0] << std::endl;
+                  << " gauge_point = " << point[0] << "\n";
       break;
     }
   }

@@ -1,9 +1,7 @@
 #ifndef POISSON_PROBLEM_H
 #define POISSON_PROBLEM_H
 
-#include <cstddef>
 #include <deal.II/base/function.h>
-
 #include <deal.II/base/index_set.h>
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/mpi_remote_point_evaluation.h>
@@ -42,6 +40,7 @@
 #include <deal.II/numerics/solution_transfer.h>
 #include <deal.II/numerics/vector_tools.h>
 
+#include <cstddef>
 #include <deal.II/numerics/vector_tools_evaluate.h>
 #include <deal.II/numerics/vector_tools_interpolate.h>
 #include <deal.II/numerics/vector_tools_point_gradient.h>
@@ -49,6 +48,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -56,6 +56,7 @@
 #include "nufi/cells.h"
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
+#include "nufi/stopwatch.h"
 #include "omp.h"
 
 void save_space_vector(const std::vector<double> &vals,
@@ -70,8 +71,8 @@ public:
   PoissonProblem(unsigned int degree);
 
   void initialize();
-  void solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
-                  bool refining = false);
+  double solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
+                    bool refining = false);
   void coarse_and_refine_grid(size_t it);
   void setup_constraints(AffineConstraints<double> &constraints);
   void run();
@@ -91,6 +92,7 @@ public:
     return constraints;
   }
   const CellLocator<dim> &get_locator() const { return cell_locator; }
+  double get_error_estimate() const { return error_estimate; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
                                             unsigned int Nx);
@@ -108,6 +110,7 @@ private:
   void setup_system();
   void assemble_system();
   void solve(size_t it);
+  void estimate_error();
 
   std::function<std::vector<double>(const std::vector<Point<dim>> &)>
       rhs_function;
@@ -124,6 +127,7 @@ private:
   Vector<double> system_rhs;
 
   const bool PRINT_GAUGE_DOF_POSITION = true;
+  double error_estimate = 0.0;
 };
 
 //====//====//
@@ -336,10 +340,6 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
 
   // used for evaluator to avoid running it anytime there is an eval
   cell_locator.rebuild(dof_handler, triangulation);
-
-  // local_solution_buffer.resize(fe.n_dofs_per_cell());
-  // evaluator = std::make_unique<FEPointEvaluation<dim, dim>>(mapping, fe,
-  // update_gradients);
 }
 
 template <int dim> void PoissonProblem<dim>::assemble_system() {
@@ -375,7 +375,9 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   Assert(rhs_function,
          ExcMessage("Poisson RHS function has not been initialized."));
 
+  std::cout << "Start of full rho eval..." << "\n";
   std::vector<double> all_rho = rhs_function(all_q_points);
+  std::cout << "End of full rho eval..." << "\n";
 
   Assert(all_rho.size() == all_q_points.size(),
          ExcMessage("rhs_function returned wrong size"));
@@ -417,21 +419,20 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
       dof_handler, QGauss<dim - 1>(fe.degree + 1),
       std::map<types::boundary_id, const Function<dim> *>(), solution,
       error_per_cell);
-  GridRefinement::refine_and_coarsen_fixed_number(triangulation, error_per_cell,
-                                                  0.3, 0.03);
 
-  // START: remove refinment flags from edges of domain to alow safe gauge
-  // fixing
-  // for (const auto &cell : triangulation.active_cell_iterators()) {
-  //   const double x = cell->center()[0];
-  //   if (x >= Parameters::X_DOMAIN_RIGHT - .5) {
-  //     cell->clear_refine_flag();
-  //     cell->clear_coarsen_flag();
-  //   }
-  // }
-  // END
+  // GridRefinement::refine_and_coarsen_fixed_number(triangulation,
+  // error_per_cell,
+  //                                                 0.3, 0.03);
+  GridRefinement::refine_and_coarsen_fixed_fraction(
+      triangulation, error_per_cell, Parameters::REFINEMENT_TOP_FRACTION,
+      Parameters::REFINEMENT_BOTTOM_FRACTION,
+      std::numeric_limits<unsigned int>::max(), VectorTools::L2_norm);
 
-  // triangulation.prepare_coarsening_and_refinement();
+  // Avoid coarsing below GLOBAL_REFINEMENT level for CellLocator
+  for (const auto &cell : triangulation.active_cell_iterators())
+    if (cell->level() <= static_cast<int>(Parameters::GLOBAL_REFINEMENT))
+      cell->clear_coarsen_flag();
+
   triangulation.execute_coarsening_and_refinement();
 
   std::cout << "Refinement Finished..." << "\n";
@@ -439,13 +440,17 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   std::string grid_file_name =
       Parameters::PLOT_DIR + "grid_" + std::to_string(it);
   save_grid_to_file(grid_file_name);
+}
 
-  // std::vector<double> Ex =
-  // sample_electric_potential(Parameters::X_DOMAIN_LEFT,
-  //                                                    Parameters::X_DOMAIN_RIGHT,
-  //                                                    Parameters::PLOT_NX);
-  //
-  // save_space_vector(Ex, "Ex_after_coarsed", it);
+template <int dim> void PoissonProblem<dim>::estimate_error() {
+  Vector<float> error_per_cell(triangulation.n_active_cells());
+
+  KellyErrorEstimator<dim>::estimate(
+      dof_handler, QGauss<dim - 1>(fe.degree + 1),
+      std::map<types::boundary_id, const Function<dim> *>(), solution,
+      error_per_cell);
+
+  error_estimate = error_per_cell.l2_norm();
 }
 
 template <int dim> void PoissonProblem<dim>::solve(size_t it) {
@@ -488,15 +493,21 @@ template <int dim> void PoissonProblem<dim>::initialize() {
 }
 
 template <int dim>
-void PoissonProblem<dim>::solve_step(
+double PoissonProblem<dim>::solve_step(
     size_t it, std::vector<GridStructure<1>> &grid_versions, bool refining) {
+  double refining_time = 0.0;
   if (refining) {
+    stopwatch<double> refining_timer;
     coarse_and_refine_grid(it);
     setup_system();
     update_grid_versions(grid_versions, *this);
+    refining_time = refining_timer.elapsed();
   }
   assemble_system();
   solve(it);
+  estimate_error();
+
+  return refining_time;
 }
 
 // NuFI doesnt use this, kept only for testing PoissonProblem

@@ -1,117 +1,146 @@
 #ifndef CELLS_H
 #define CELLS_H
 
-#include <algorithm>
-#include <boost/geometry/geometries/concepts/point_concept.hpp>
+#include <array>
+#include <cmath>
 #include <deal.II/base/geometry_info.h>
 #include <deal.II/base/point.h>
 #include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/tria.h>
 #include <vector>
 
+#include "nufi/parameters.h"
+
 using namespace dealii;
 
-template <int dim> struct CellInfo {
-  // what needs to be given to evaluator
-  typename DoFHandler<dim>::active_cell_iterator cell;
-  // usefull for locator
-  Point<dim> lower;
-  Point<dim> upper;
-  double h;
-};
-
 template <int dim> struct CellLocation {
-  const CellInfo<dim> *info;
+  typename DoFHandler<dim>::active_cell_iterator cell;
   Point<dim> reference_point;
 };
 
 template <int dim> class CellLocator {
 public:
-  using CellIterator = typename DoFHandler<dim>::active_cell_iterator;
-
   void rebuild(const DoFHandler<dim> &dof_handler,
                const Triangulation<dim> &triangulation);
+
   CellLocation<dim> locate(const Point<dim> &p) const;
 
-  const std::vector<Point<dim>> &get_cell_centers() const;
-
 private:
-  std::vector<CellInfo<dim>> cells;
-  std::vector<Point<dim>> cell_centers;
+  const DoFHandler<dim> *dof_handler_ptr = nullptr;
+  Point<dim> lower;
+  Point<dim> upper;
+
+  // Cached base level = Parameters::GLOBAL_REFINEMENT.
+  unsigned int base_level = 0;
+  unsigned int base_n_per_axis = 1; // 2^base_level
+
+  std::vector<typename Triangulation<dim>::cell_iterator> base_cells;
 };
 
 template <int dim>
 void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
                                const Triangulation<dim> &triangulation) {
+  dof_handler_ptr = &dof_handler;
 
-  cells.clear();
-  cells.reserve(triangulation.n_active_cells());
+  AssertThrow(triangulation.n_cells(0) == 1,
+              ExcMessage("CellLocator assumes exactly one coarse/root cell."));
 
-  for (const auto &cell : dof_handler.active_cell_iterators()) {
-    CellInfo<dim> info;
+  typename Triangulation<dim>::cell_iterator root = triangulation.begin(0);
+  lower = root->vertex(0);
+  upper = root->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
 
-    info.cell = cell;
-    info.lower = cell->vertex(0);
-    info.upper = cell->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
+  base_level = Parameters::GLOBAL_REFINEMENT;
+  base_n_per_axis = 1u << base_level; // = 2^base_level
 
-    info.h = info.upper[0] - info.lower[0];
+  const unsigned int n_base_cells =
+      1u << (dim * base_level); // = 2^(dim*base_level)
+  base_cells.assign(n_base_cells, typename Triangulation<dim>::cell_iterator());
 
-    cells.push_back(info);
-  }
+  std::vector<typename Triangulation<dim>::cell_iterator> stack;
+  std::vector<unsigned int> index_stack;
+  std::vector<unsigned int> depth_stack;
+  stack.push_back(root);
+  index_stack.push_back(0);
+  depth_stack.push_back(0);
 
-  std::sort(cells.begin(), cells.end(),
-            [](const CellInfo<dim> &a, const CellInfo<dim> &b) {
-              return a.lower[0] < b.lower[0];
-            });
+  while (!stack.empty()) {
+    auto cell = stack.back();
+    unsigned int idx = index_stack.back();
+    unsigned int depth = depth_stack.back();
+    stack.pop_back();
+    index_stack.pop_back();
+    depth_stack.pop_back();
 
-  cell_centers.clear();
-  cell_centers.reserve(cells.size());
+    if (depth == base_level) {
+      base_cells[idx] = cell;
+      continue;
+    }
 
-  for (const auto &cell : cells) {
-    Point<dim> center;
-    for (unsigned int d = 0; d < dim; ++d)
-      center[d] = 0.5 * (cell.lower[d] + cell.upper[d]);
+    AssertThrow(cell->has_children(),
+                ExcMessage("CellLocator: mesh is not uniformly refined to "
+                           "Parameters::GLOBAL_REFINEMENT; base-level cache "
+                           "cannot be built. Did you coarsen below the "
+                           "global refinement level?"));
 
-    cell_centers.push_back(center);
+    const unsigned int n_children = GeometryInfo<dim>::max_children_per_cell;
+    for (unsigned int c = 0; c < n_children; ++c) {
+      stack.push_back(cell->child(c));
+      index_stack.push_back(idx * n_children + c);
+      depth_stack.push_back(depth + 1);
+    }
   }
 }
 
 template <int dim>
 CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
-  static_assert(dim == 1,
-                "Current CellLocator implementation only supports 1D.");
-
-  AssertThrow(!cells.empty(),
+  AssertThrow(dof_handler_ptr != nullptr,
               ExcMessage("CellLocator::rebuild() has not been called."));
 
-  const double x = p[0];
+  Point<dim> p_wrapped;
+  for (unsigned int d = 0; d < dim; ++d) {
+    const double L = upper[d] - lower[d];
+    double x = p[d] - lower[d];
+    x = x - L * std::floor(x / L);
+    p_wrapped[d] = lower[d] + x;
+  }
 
-  auto it = std::upper_bound(cells.begin(), cells.end(), x,
-                             [](double value, const CellInfo<dim> &cell) {
-                               return value < cell.lower[0];
-                             }); // returns cell to the right of cell with x
+  Point<dim> xi;
+  for (unsigned int d = 0; d < dim; ++d) {
+    xi[d] = (p_wrapped[d] - lower[d]) / (upper[d] - lower[d]);
+    xi[d] = std::min(std::max(xi[d], 0.0), 1.0); // of cell at base level
+  }
 
-  if (it == cells.begin())
-    it = cells.begin();
-  else
-    --it;
+  unsigned int idx = 0;
+  Point<dim> xi_local = xi;
+  for (unsigned int l = 0; l < base_level; ++l) {
+    const unsigned int child_index =
+        GeometryInfo<dim>::child_cell_from_point(xi_local);
+    xi_local =
+        GeometryInfo<dim>::cell_to_child_coordinates(xi_local, child_index);
+    idx = idx * GeometryInfo<dim>::max_children_per_cell + child_index;
+  }
 
-  // Safety check: make sure the point is really inside this cell
-  AssertThrow(x >= it->lower[0] - 1e-12 && x <= it->upper[0] + 1e-12,
-              ExcMessage("CellLocator failed to find containing cell."));
+  typename Triangulation<dim>::cell_iterator cell = base_cells[idx];
+  xi = xi_local;
+
+  // Step 4: continue descending only through ADAPTIVE refinement beyond
+  // the base level -- this loop now only runs `depth - base_level` times
+  // instead of `depth` times.
+  while (cell->has_children()) {
+    const unsigned int child_index =
+        GeometryInfo<dim>::child_cell_from_point(xi);
+    xi = GeometryInfo<dim>::cell_to_child_coordinates(xi, child_index);
+    cell = cell->child(child_index);
+  }
+
+  typename DoFHandler<dim>::active_cell_iterator dof_cell(
+      &cell->get_triangulation(), cell->level(), cell->index(),
+      dof_handler_ptr);
 
   CellLocation<dim> location;
-
-  location.info = &(*it);
-  location.reference_point[0] = (p[0] - it->lower[0]) / it->h;
-
+  location.cell = dof_cell;
+  location.reference_point = xi;
   return location;
-}
-
-template <int dim>
-const std::vector<Point<dim>> &CellLocator<dim>::get_cell_centers() const {
-  return cell_centers;
 }
 
 #endif // !CELLS_H
