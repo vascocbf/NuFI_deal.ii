@@ -81,7 +81,6 @@ public:
   unsigned int get_dof_size();
   void set_rhs_function(
       std::function<std::vector<double>(const std::vector<Point<dim>> &)> f);
-  // void set_rhs(const Vector<double> &new_rhs) { rhs = new_rhs; }
 
   const Vector<double> &get_solution() const { return solution; }
   const MappingQ<dim> &get_mapping() const { return mapping; }

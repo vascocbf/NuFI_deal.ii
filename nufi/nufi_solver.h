@@ -11,7 +11,6 @@
 #include "nufi/fields.h" // dont remove
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
-#include "nufi/poisson_problem.h"
 
 using namespace dealii;
 
@@ -19,7 +18,6 @@ class NuFISolver {
 public:
   NuFISolver();
 
-  void run();
   std::vector<double>
   eval_rho(unsigned int n, std::vector<double> &x,
            const std::vector<GridStructure<1>> &grid_struct,
@@ -48,10 +46,6 @@ private:
   double x_min = Parameters::X_DOMAIN_LEFT;
   double x_max = Parameters::X_DOMAIN_RIGHT;
 
-  std::vector<double> rho;
-
   unsigned int order;
-
-  PoissonProblem<1> poisson;
 };
 #endif
