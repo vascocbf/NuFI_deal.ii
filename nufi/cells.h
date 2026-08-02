@@ -33,9 +33,7 @@ private:
   // Cached base level = Parameters::GLOBAL_REFINEMENT.
   unsigned int base_level = 0;
   unsigned int base_n_per_axis = 1; // 2^base_level
-  // Flat lookup, indexed in the same bit-interleaved order that
-  // GeometryInfo<dim>::child_cell_from_point produces at each level,
-  // so base_cells[idx] can be found with pure bit math, no tree walk.
+
   std::vector<typename Triangulation<dim>::cell_iterator> base_cells;
 };
 
@@ -52,16 +50,12 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
   upper = root->vertex(GeometryInfo<dim>::vertices_per_cell - 1);
 
   base_level = Parameters::GLOBAL_REFINEMENT;
-  base_n_per_axis = 1u << base_level;
+  base_n_per_axis = 1u << base_level; // = 2^base_level
 
-  // Walk down exactly base_level times ONCE per base cell to build the
-  // flat table. This costs O(2^(dim*base_level)) total at rebuild time
-  // (proportional to the number of base cells), not per locate() call.
-  const unsigned int n_base_cells = 1u << (dim * base_level);
+  const unsigned int n_base_cells =
+      1u << (dim * base_level); // = 2^(dim*base_level)
   base_cells.assign(n_base_cells, typename Triangulation<dim>::cell_iterator());
 
-  // Recursive-free BFS/DFS: descend from root, tracking the accumulated
-  // child-index bits per level to know where to store each level-G cell.
   std::vector<typename Triangulation<dim>::cell_iterator> stack;
   std::vector<unsigned int> index_stack;
   std::vector<unsigned int> depth_stack;
@@ -82,8 +76,6 @@ void CellLocator<dim>::rebuild(const DoFHandler<dim> &dof_handler,
       continue;
     }
 
-    // At this point cell must have children, since refine_global(base_level)
-    // guarantees a fully uniform tree down to base_level.
     AssertThrow(cell->has_children(),
                 ExcMessage("CellLocator: mesh is not uniformly refined to "
                            "Parameters::GLOBAL_REFINEMENT; base-level cache "
@@ -104,7 +96,6 @@ CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
   AssertThrow(dof_handler_ptr != nullptr,
               ExcMessage("CellLocator::rebuild() has not been called."));
 
-  // Step 1: periodic wrap into [lower, upper) per axis.
   Point<dim> p_wrapped;
   for (unsigned int d = 0; d < dim; ++d) {
     const double L = upper[d] - lower[d];
@@ -113,19 +104,12 @@ CellLocation<dim> CellLocator<dim>::locate(const Point<dim> &p) const {
     p_wrapped[d] = lower[d] + x;
   }
 
-  // Step 2: reference coordinates in the root cell, clamped against
-  // floating-point drift at the domain boundary.
   Point<dim> xi;
   for (unsigned int d = 0; d < dim; ++d) {
     xi[d] = (p_wrapped[d] - lower[d]) / (upper[d] - lower[d]);
-    xi[d] = std::min(std::max(xi[d], 0.0), 1.0);
+    xi[d] = std::min(std::max(xi[d], 0.0), 1.0); // of cell at base level
   }
 
-  // Step 3: O(1) jump to the base-level (GLOBAL_REFINEMENT) cell via index
-  // math, replacing what used to be `base_level` iterations of the
-  // has_children() loop. Must mirror the same bit convention used when
-  // building base_cells in rebuild() (child index accumulated as
-  // idx = idx*n_children + child_cell_from_point(xi) at each level).
   unsigned int idx = 0;
   Point<dim> xi_local = xi;
   for (unsigned int l = 0; l < base_level; ++l) {

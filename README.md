@@ -13,9 +13,10 @@ notes:
 
 - Locator not optimized for 1d.
 - works for higher dimensions
+- locator up to O(dim * Max_depth)
 -
 
-status: Working, to be re-reviewed
+status: Working
 
 Refinement working:
 
