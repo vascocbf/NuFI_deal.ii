@@ -2,7 +2,6 @@
 #define GRIDS_H
 
 #include "nufi/cells.h"
-#include "nufi/parameters.h"
 
 #include <deal.II/base/exceptions.h>
 #include <deal.II/dofs/dof_handler.h>
@@ -18,6 +17,7 @@
 #include <deal.II/numerics/vector_tools.h>
 
 #include <memory>
+#include <omp.h>
 #include <unordered_map>
 #include <vector>
 
@@ -59,7 +59,7 @@ template <int dim> struct GridStructure {
       cells.push_back(locations[groups.back().front()].cell);
     }
 
-#pragma omp parallel
+#pragma omp parallel if (!omp_in_parallel())
     {
       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
       FEPointEvaluation<dim, dim> evaluator(*mapping, *fe, update_gradients);
