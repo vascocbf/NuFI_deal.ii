@@ -1,21 +1,10 @@
+#include "nufi/stopwatch.h"
 #include <filesystem>
 #include <iostream>
 #include <nufi/nufi_solver.h>
 #include <nufi/poisson_problem.h>
 #include <nufi/save_results.h>
 #include <omp.h>
-
-void clear_results_directory(const std::string &dir) {
-  if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir))
-    return;
-
-  for (const auto &entry : std::filesystem::directory_iterator(dir)) {
-    if (std::filesystem::is_regular_file(entry)) {
-      std::filesystem::remove(entry.path());
-      std::cout << "Deleted: " << entry.path() << '\n';
-    }
-  }
-};
 
 template <int dim> void run() {
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);
@@ -132,6 +121,18 @@ template <int dim> void run() {
   }
 
   std::cout << "NuFI simulation finished in " << total_time << " seconds.\n";
+};
+
+void clear_results_directory(const std::string &dir) {
+  if (!std::filesystem::exists(dir) || !std::filesystem::is_directory(dir))
+    return;
+
+  for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+    if (std::filesystem::is_regular_file(entry)) {
+      std::filesystem::remove(entry.path());
+      std::cout << "Deleted: " << entry.path() << '\n';
+    }
+  }
 };
 
 int main() {
