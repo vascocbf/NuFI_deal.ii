@@ -42,7 +42,6 @@ public:
 
 private:
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);
-  unsigned int Nx = Parameters::CALC_NX;
 
   double Lx = Parameters::LX;
 

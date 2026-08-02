@@ -1,4 +1,4 @@
-#fndef CELLS_H
+#ifndef CELLS_H
 #define CELLS_H
 
 #include <array>
