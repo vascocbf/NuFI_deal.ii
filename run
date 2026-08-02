@@ -84,3 +84,17 @@ echo "    perf.data   : ${PERF_DATA}"
 echo "    out.perf    : ${PERF_SCRIPT_OUT}"
 echo "    out.folded  : ${FOLDED_OUT}"
 echo "    flamegraph  : ${FLAMEGRAPH_OUT}"
+
+read -r -p "Open flamegraph in Firefox? [y/N] " OPEN_CHOICE
+case "${OPEN_CHOICE}" in
+  [yY]|[yY][eE][sS])
+    if command -v firefox >/dev/null 2>&1; then
+      firefox "${FLAMEGRAPH_OUT}" >/dev/null 2>&1 &
+      disown
+    else
+      echo "warning: 'firefox' not found on PATH; open it manually: ${FLAMEGRAPH_OUT}" >&2
+    fi
+    ;;
+  *)
+    ;;
+esac
