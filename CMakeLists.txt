@@ -54,4 +54,4 @@ target_link_libraries(nufi_poisson
 
 deal_ii_setup_target(nufi_poisson)
 
-target_compile_options(nufi_poisson PRIVATE -O3)
+target_compile_options(nufi_poisson PRIVATE -O3 -g)

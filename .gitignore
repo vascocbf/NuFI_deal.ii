@@ -9,3 +9,8 @@ saved_sims/
 
 .todo-txt/
 Notes/
+
+*.data
+*.perf
+*.folded
+*.svg

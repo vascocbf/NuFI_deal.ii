@@ -14,7 +14,7 @@ constexpr double X_DOMAIN_RIGHT = 4 * M_PI;
 constexpr double LX = std::abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT);
 constexpr double LX_INV = 1 / LX;
 
-constexpr size_t CALC_NX = 256;
+constexpr size_t CALC_NX = 512;
 constexpr double CALC_DX = LX / CALC_NX;
 
 constexpr double V_DOMAIN_LEFT = -10.;
@@ -28,7 +28,7 @@ constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 // 1 -> landau-damping
 // 2 -> maxwellian
 // 3 -> bump-on-tail
-constexpr size_t f0_TYPE = 0;
+constexpr size_t f0_TYPE = 1;
 
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 7;
