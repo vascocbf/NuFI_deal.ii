@@ -9,7 +9,9 @@ ______________________________________________________________________
 
 dimensions: 1x1v
 
-status: builds, runs
+status: builds, runs, fails on runtime
+
+solver didnt converge but error was of order e-7 for 9th grid version with 4k dofs, failed on first step after last refinement, probably due to "over refinement" due to the acumulated error at low refinement levels.
 
 notes:
 
