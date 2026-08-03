@@ -34,7 +34,7 @@ constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
 // Adaptive refinement options
-constexpr unsigned int REFINE_FREQUENCY = 30;
+constexpr unsigned int REFINE_FREQUENCY = 10;
 constexpr double REFINEMENT_TOP_FRACTION = 0.8;
 constexpr double REFINEMENT_BOTTOM_FRACTION = 0.1;
 
@@ -51,7 +51,7 @@ constexpr double DT = 1. / 10.;
 constexpr unsigned int TMAX = 100;
 
 // Plotting options
-constexpr int PLOT_FREQUENCY = 10;
+constexpr int PLOT_FREQUENCY = 5;
 constexpr size_t PLOT_NX = 512;
 constexpr double PLOT_DX = LX / PLOT_NX;
 const std::string PLOT_DIR = "results/";

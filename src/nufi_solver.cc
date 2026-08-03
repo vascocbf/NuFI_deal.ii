@@ -152,7 +152,7 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
 
   const double dv =
       (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
-  const double v_min = Parameters::V_DOMAIN_LEFT;
+  const double v_min = Parameters::V_DOMAIN_LEFT + .5 * dv;
 
 #pragma omp parallel for
   for (unsigned int i = 0; i < Nv; ++i) {
