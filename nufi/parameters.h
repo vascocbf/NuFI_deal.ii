@@ -17,7 +17,7 @@ constexpr double LX_INV = 1 / LX;
 constexpr double V_DOMAIN_LEFT = -10.;
 constexpr double V_DOMAIN_RIGHT = 10.;
 
-constexpr unsigned int NV = 128;
+constexpr unsigned int NV = 256;
 constexpr double DV = std::abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV;
 
 // f0_TYPE:
@@ -30,11 +30,11 @@ constexpr size_t f0_TYPE = 1;
 // deal.ii options
 constexpr unsigned int GLOBAL_REFINEMENT = 8;
 constexpr unsigned int FE_DEGREE = 3;
-constexpr unsigned int CONVERGENCE_ITERATIONS = 5000;
+constexpr unsigned int CONVERGENCE_ITERATIONS = 10000;
 constexpr double CONVERGENCE_LIMIT = 1e-8;
 
 // Adaptive refinement options
-constexpr unsigned int REFINE_FREQUENCY = 30;
+constexpr unsigned int REFINE_FREQUENCY = 50;
 constexpr double REFINEMENT_TOP_FRACTION = 0.8;
 constexpr double REFINEMENT_BOTTOM_FRACTION = 0.1;
 
