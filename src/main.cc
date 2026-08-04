@@ -28,13 +28,10 @@ template <int dim> void run() {
   std::cout << "Initializing dealii Poisson Solver\n";
   poisson.initialize();
 
-  std::vector<double> int_E_squared;
-  int_E_squared.reserve(Nt);
-  std::vector<double> int_E_squared_times;
-  int_E_squared_times.reserve(Nt);
+  std::vector<GridStructure<dim>> grid_versions;
+  std::vector<SolutionSnapshot<dim>> phi_history;
 
-  std::vector<GridStructure<1>> grid_versions;
-  std::vector<SolutionSnapshot<1>> phi_history;
+  std::vector<RhoESnapshot> rho_e_history;
 
   std::ofstream time_file(Parameters::PLOT_DIR + "simulation_time.dat");
 
@@ -91,6 +88,8 @@ template <int dim> void run() {
     }
     update_solution_history(phi_history, poisson,
                             grid_versions.back().grid_version);
+    rho_e_history.push_back(compute_rho_E_snapshot(
+        solver, it, grid_versions, phi_history, Parameters::PLOT_NX));
 
     error_file << it << " " << poisson.get_error_estimate() << "\n";
     error_file.flush();
@@ -109,15 +108,8 @@ template <int dim> void run() {
                               Parameters::PLOT_NX, Parameters::NV);
 
       save_f(snap, Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".dat");
-      save_rho(snap,
-               Parameters::PLOT_DIR + "rho_" + std::to_string(it) + ".dat");
-      save_Efield(snap,
-                  Parameters::PLOT_DIR + "E_" + std::to_string(it) + ".dat");
 
-      int_E_squared.push_back(compute_int_E_squared(snap));
-      int_E_squared_times.push_back(it * Parameters::DT);
-      save_time_series(int_E_squared_times, int_E_squared,
-                       Parameters::PLOT_DIR + "int_E_sqr.dat");
+      flush_rho_E_history(rho_e_history, Parameters::PLOT_DIR);
 
       plot_time = timer.elapsed() - plot_start;
       std::cout << "Results saved in " << plot_start << "[s]" << "\n";

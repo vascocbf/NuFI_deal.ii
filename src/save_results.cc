@@ -37,6 +37,65 @@ void save_field_1d(const std::vector<double> &x,
     file << x[i] << " " << values[i] << "\n";
 }
 
+RhoESnapshot
+compute_rho_E_snapshot(const NuFISolver &solver, unsigned int n,
+                       std::vector<GridStructure<1>> &grid_struct,
+                       std::vector<SolutionSnapshot<1>> &phi_history,
+                       unsigned int Nx_out, unsigned int Nv) {
+  RhoESnapshot snap;
+  snap.it = n;
+  snap.time = n * Parameters::DT;
+  snap.x_eval = make_x_eval(Nx_out);
+
+  // rho at the plot grid (the expensive part — full characteristic trace)
+  snap.rho = solver.eval_rho(n, snap.x_eval, grid_struct, phi_history, Nv);
+
+  // E is just -grad(phi), cheap — reuse the already-solved phi for this step
+  std::vector<double> x_copy = snap.x_eval;
+  auto grad_phi = eval(x_copy, grid_struct[phi_history[n].grid_version],
+                       phi_history[n].solution);
+  snap.E.resize(Nx_out);
+  for (unsigned int i = 0; i < Nx_out; ++i)
+    snap.E[i] = -grad_phi[i];
+
+  snap.int_E_sqr = compute_int_E_squared(snap.E, Parameters::LX);
+
+  return snap;
+}
+
+void flush_rho_E_history(std::vector<RhoESnapshot> &history,
+                         const std::string &dir) {
+  ensure_results_dir();
+
+  std::vector<double> t, int_E_sqr;
+  t.reserve(history.size());
+  int_E_sqr.reserve(history.size());
+
+  for (const auto &snap : history) {
+    save_field_1d(snap.x_eval, snap.rho,
+                  dir + "rho_" + std::to_string(snap.it) + ".dat");
+    save_field_1d(snap.x_eval, snap.E,
+                  dir + "E_" + std::to_string(snap.it) + ".dat");
+    t.push_back(snap.time);
+    int_E_sqr.push_back(snap.int_E_sqr);
+  }
+
+  // Append rather than overwrite, since flush is called repeatedly.
+  static bool wrote_header = false;
+  std::ofstream file(dir + "int_E_sqr.dat",
+                     wrote_header ? std::ios::app : std::ios::trunc);
+  if (!wrote_header) {
+    file << "# nufi time series\n";
+    file << "# columns: t value\n";
+    wrote_header = true;
+  }
+  file << std::setprecision(10);
+  for (size_t i = 0; i < t.size(); ++i)
+    file << t[i] << " " << int_E_sqr[i] << "\n";
+
+  history.clear();
+}
+
 DiagnosticsSnapshot
 compute_diagnostics(const NuFISolver &solver, unsigned int n,
                     std::vector<GridStructure<1>> &grid_struct,
@@ -102,10 +161,10 @@ void save_Efield(const DiagnosticsSnapshot &snap, const std::string &filepath) {
   save_field_1d(snap.x_eval, snap.E, filepath);
 }
 
-double compute_int_E_squared(const DiagnosticsSnapshot &snap) {
-  const double dx = Parameters::LX / snap.Nx;
+double compute_int_E_squared(const std::vector<double> &E, double Lx) {
+  const double dx = Lx / E.size();
   double integral = 0.0;
-  for (double e : snap.E)
+  for (double e : E)
     integral += e * e;
   return 0.5 * integral * dx;
 }
