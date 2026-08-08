@@ -458,29 +458,11 @@ template <int dim> void PoissonProblem<dim>::solve(size_t it) {
                                    system_rhs.l2_norm());
   SolverCG<Vector<double>> solver(solver_control);
 
-  solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-  constraints.distribute(solution);
+  PreconditionJacobi<SparseMatrix<double>> preconditioner;
+  preconditioner.initialize(system_matrix);
 
-  // std::ofstream out("results/phi_after_solve_" + std::to_string(it) +
-  // ".dat"); std::vector<std::pair<double, double>> data;
-  //
-  // const auto support =
-  //     DoFTools::map_dofs_to_support_points(mapping, dof_handler);
-  //
-  // for (const auto &[dof, p] : support) {
-  //   data.emplace_back(p[0], solution[dof]);
-  // }
-  //
-  // std::sort(data.begin(), data.end());
-  //
-  // for (const auto &[x, value] : data) {
-  //   out << x << " " << value << "\n";
-  // }
-  //
-  // std::vector<double> E_x =
-  //     sample_electric_field(Parameters::X_DOMAIN_LEFT,
-  //                           Parameters::X_DOMAIN_RIGHT, Parameters::PLOT_NX);
-  // save_space_vector(E_x, "E_x_after_solve", it);
+  solver.solve(system_matrix, solution, system_rhs, preconditioner);
+  constraints.distribute(solution);
 }
 
 template <int dim> void PoissonProblem<dim>::initialize() {

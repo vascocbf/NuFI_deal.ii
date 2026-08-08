@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <iostream>
 #include <nufi/nufi_solver.h>
+#include <nufi/parameters.h>
 #include <nufi/poisson_problem.h>
 #include <nufi/save_results.h>
 #include <omp.h>
@@ -130,6 +131,9 @@ int main() {
   // omp_set_max_active_levels(1);
   std::cout << "Threads: " << omp_get_max_threads() << "\n";
   try {
+
+    std::cout << "Loading parameters from lua config" << "\n";
+    Parameters::load_lua_config("parameters.lua");
 
     clear_results_directory("results");
     run<1>(); // 1 = space_dim
