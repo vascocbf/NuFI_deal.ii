@@ -21,6 +21,9 @@ deal_ii_initialize_cached_variables()
 
 find_package(OpenMP REQUIRED)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LUA REQUIRED lua5.4)
+
 # -------------------------
 
 add_library(nufi_lib
@@ -31,12 +34,14 @@ add_library(nufi_lib
 
 target_include_directories(nufi_lib PUBLIC
   ${CMAKE_SOURCE_DIR}
+  ${LUA_INCLUDE_DIRS}
 )
 
 deal_ii_setup_target(nufi_lib)
 
 target_link_libraries(nufi_lib
   OpenMP::OpenMP_CXX
+  ${LUA_LIBRARIES}
 ) 
 
 target_compile_options(nufi_lib PRIVATE -O3 -g -fno-omit-frame-pointer)
