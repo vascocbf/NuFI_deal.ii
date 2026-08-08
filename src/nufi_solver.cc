@@ -32,6 +32,7 @@ std::vector<double> NuFISolver::eval_ftilda(
     const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
   size_t x_size = X.size();
+  const double dt = Parameters::DT;
 
   std::vector<double> U(x_size, u);
   std::vector<double> results(x_size);
@@ -47,7 +48,7 @@ std::vector<double> NuFISolver::eval_ftilda(
   // We omit the initial half-step.
   while (--n) {
     for (size_t i = 0; i < x_size; ++i)
-      X[i] = X[i] - Parameters::DT * U[i];
+      X[i] = X[i] - dt * U[i];
 
     AssertThrow(
         phi_history[n].solution.size() ==
@@ -68,13 +69,13 @@ std::vector<double> NuFISolver::eval_ftilda(
 
     for (size_t i = 0; i < x_size; ++i) {
       Ex[i] = -tmp[i];
-      U[i] = U[i] + Parameters::DT * Ex[i];
+      U[i] = U[i] + dt * Ex[i];
     }
   }
 
   // The final half-step.
   for (size_t i = 0; i < x_size; ++i)
-    X[i] = X[i] - Parameters::DT * U[i];
+    X[i] = X[i] - dt * U[i];
 
   tmp = eval(X, grid_struct[phi_history[n].grid_version],
              phi_history[n].solution); // call eval only once
@@ -92,7 +93,7 @@ std::vector<double>
 NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
                    const std::vector<GridStructure<1>> &grid_struct,
                    const std::vector<SolutionSnapshot<1>> &phi_history) const {
-
+  const double dt = Parameters::DT;
   size_t x_size = X.size();
 
   std::vector<double> U(x_size, u);
@@ -111,30 +112,30 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+    U[i] = U[i] + 0.5 * dt * Ex[i];
   }
 
   while (--n) {
     for (size_t i = 0; i < x_size; ++i)
-      X[i] = X[i] - Parameters::DT * U[i];
+      X[i] = X[i] - dt * U[i];
 
     tmp = eval(X, grid_struct[phi_history[n].grid_version],
                phi_history[n].solution); // call eval only once
     for (size_t i = 0; i < x_size; ++i) {
       Ex[i] = -tmp[i];
-      U[i] = U[i] + Parameters::DT * Ex[i];
+      U[i] = U[i] + dt * Ex[i];
     }
   }
 
   // The final half-step.
   for (size_t i = 0; i < x_size; ++i)
-    X[i] = X[i] - Parameters::DT * U[i];
+    X[i] = X[i] - dt * U[i];
 
   tmp = eval(X, grid_struct[phi_history[n].grid_version],
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * Parameters::DT * Ex[i];
+    U[i] = U[i] + 0.5 * dt * Ex[i];
   }
 
   for (size_t i = 0; i < x_size; ++i)

@@ -7,6 +7,30 @@ This simulation of the Vlasov-Poisson system dimensions uses
 
 ______________________________________________________________________
 
+# How to use
+
+## Dependencies:
+
+- [deal.ii](https://dealii.org/) >= 9.6.0
+- OpenMP
+- [perf](https://perfwiki.github.io/main/) + [flameGraph](https://github.com/brendangregg/FlameGraph) (optional)
+
+After cloning the repo to your machine `cd` into it and run:
+
+```
+mkdir -p build; cd build/
+cmake ..
+make
+cd ..
+```
+
+Then check/change `parameters.lua` and run with `./build/nufi_poisson`.
+If you want to run with a [FlameGraph](https://www.brendangregg.com/flamegraphs.html) visualization at the end use `./run`.
+
+______________________________________________________________________
+
+# Further description
+
 dimensions: 1x1v
 
 status: builds, runs
