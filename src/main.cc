@@ -144,6 +144,9 @@ int main() {
     Parameters::load_lua_config("parameters.lua");
 
     clear_results_directory("results");
+    std::filesystem::copy_file(
+        "parameters.lua", "results/parameters.lua",
+        std::filesystem::copy_options::overwrite_existing);
     run<1>(); // 1 = space_dim
 
   } catch (const std::exception &exc) {
