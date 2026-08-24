@@ -1,3 +1,6 @@
+--
+-- DIMENSION not changable here! you need to change it on `nufi/parameters.h` and re-build binary
+--
 local DIMENSION = 1
 
 local X_DOMAIN_LEFT = 0.0

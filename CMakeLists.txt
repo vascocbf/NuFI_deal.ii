@@ -1,3 +1,4 @@
+add_compile_options(-fdiagnostics-color=always)
 cmake_minimum_required(VERSION 3.13.4)
 project(nufi_poisson)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

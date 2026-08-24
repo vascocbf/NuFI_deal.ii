@@ -51,7 +51,7 @@ template <int dim> void run() {
     double refine_time = 0.0;
     double plot_time = 0.0;
 
-    std::cout << "Timestep " << it << " / " << Nt
+    std::cout << "Timestep: " << it << " / " << Nt
               << " (simulation time = " << it * Parameters::DT << ")"
               << "\n";
 

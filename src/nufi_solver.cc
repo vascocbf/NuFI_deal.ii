@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <boost/qvm/mat_access.hpp>
-#include <cmath>
 #include <cstdlib>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/base/point.h>
@@ -10,10 +9,6 @@
 #include <deal.II/numerics/vector_tools.h>
 
 #include <cstddef>
-#include <fstream>
-#include <iostream>
-#include <memory>
-#include <ostream>
 #include <string>
 #include <vector>
 
@@ -80,7 +75,7 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
 
 std::vector<double> NuFISolver::eval_ftilda_batch(
     unsigned int n, std::vector<double> X, std::vector<double> U,
-    const std::vector<GridStructure<1>> &grid_struct,
+    const std::vector<GridStructure<1>> &grid_structures,
     const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
   const size_t x_size = X.size();
@@ -97,24 +92,24 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
 
   // We omit the initial half-step.
   while (--n) {
+
+    const GridStructure<Parameters::DIMENSION> &grid_struct =
+        grid_structures[phi_history[n].grid_version];
+
     for (size_t k = 0; k < x_size; ++k)
       X[k] = X[k] - Parameters::DT * U[k];
 
-    AssertThrow(
-        phi_history[n].solution.size() ==
-            grid_struct[phi_history[n].grid_version].dof_handler->n_dofs(),
-        ExcMessage("In eval_ftilda_batch: Solution size = " +
-                   std::to_string(phi_history[n].solution.size()) +
-                   ", expected by grid_struct = " +
-                   std::to_string(grid_struct[phi_history[n].grid_version]
-                                      .dof_handler->n_dofs())));
-    AssertThrow(
-        grid_struct[phi_history[n].grid_version].grid_version ==
-            phi_history[n].grid_version,
-        ExcMessage(
-            "grid.grid_version not equal to phi_history[n].grid_version"));
+    AssertThrow(phi_history[n].solution.size() ==
+                    grid_struct.dof_handler->n_dofs(),
+                ExcMessage("[NuFISolver::eval_ftilda_batch] Solution size = " +
+                           std::to_string(phi_history[n].solution.size()) +
+                           ", expected by grid_struct = " +
+                           std::to_string(grid_struct.dof_handler->n_dofs())));
+    AssertThrow(grid_struct.grid_version == phi_history[n].grid_version,
+                ExcMessage("[NuFISolver::eval_ftilda_batch] grid.grid_version "
+                           "not equal to phi_history[n].grid_version"));
 
-    tmp = eval(X, grid_struct[phi_history[n].grid_version],
+    tmp = eval(X, grid_struct,
                phi_history[n].solution); // one call for the whole batch
 
     for (size_t k = 0; k < x_size; ++k) {
@@ -124,11 +119,13 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
   }
 
   // The final half-step.
+  const GridStructure<Parameters::DIMENSION> &grid_struct =
+      grid_structures[phi_history[n].grid_version];
+
   for (size_t k = 0; k < x_size; ++k)
     X[k] = X[k] - Parameters::DT * U[k];
 
-  tmp = eval(X, grid_struct[phi_history[n].grid_version],
-             phi_history[n].solution);
+  tmp = eval(X, grid_struct, phi_history[n].solution);
 
   for (size_t k = 0; k < x_size; ++k) {
     Ex[k] = -tmp[k];

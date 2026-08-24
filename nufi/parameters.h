@@ -8,7 +8,7 @@
 
 namespace Parameters {
 
-inline unsigned int DIMENSION;
+inline constexpr unsigned int DIMENSION = 1;
 
 inline double X_DOMAIN_LEFT;
 inline double X_DOMAIN_RIGHT;
@@ -55,8 +55,6 @@ inline std::string PLOT_DIR;
 
 inline void load_lua_config(const std::string &luaFilePath) {
   LuaConfig config(luaFilePath, "parameters");
-
-  DIMENSION = static_cast<unsigned int>(config.get<int>("DIMENSION"));
 
   X_DOMAIN_LEFT = config.get<double>("X_DOMAIN_LEFT");
   X_DOMAIN_RIGHT = config.get<double>("X_DOMAIN_RIGHT");
