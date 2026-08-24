@@ -36,6 +36,11 @@ public:
          const std::vector<SolutionSnapshot<1>> &phi_history) const;
 
   std::vector<double>
+  eval_ftilda(unsigned int n, std::vector<double> X, double u,
+              const std::vector<GridStructure<1>> &grid_struct,
+              const std::vector<SolutionSnapshot<1>> &phi_history) const;
+
+  std::vector<double>
   eval_rho_points(unsigned int n, const std::vector<Point<1>> &points,
                   const std::vector<GridStructure<1>> &grid_struct,
                   const std::vector<SolutionSnapshot<1>> &phi_history,

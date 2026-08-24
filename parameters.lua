@@ -9,7 +9,7 @@ local X_DOMAIN_RIGHT = 4 * math.pi
 local V_DOMAIN_LEFT = -10.0
 local V_DOMAIN_RIGHT = 10.0
 
-local NV = 256
+local NV = 512
 
 -- f0_TYPE:
 -- 0 -> twos-stream
@@ -25,7 +25,6 @@ local FE_DEGREE = 3
 local CONVERGENCE_ITERATIONS = 5000
 local CONVERGENCE_LIMIT = 1e-7
 
-
 -- Adaptive refinement options
 local REFINE_FREQUENCY = 50
 local REFINEMENT_TOP_FRACTION = .8
@@ -38,7 +37,7 @@ local F0_FACTOR = 0.39894228040143267793994
 
 -- NUFI options
 local DT = 1. / 10.
-local TMAX = 100
+local TMAX = 150
 
 -- Plotting options
 local PLOT_FREQUENCY = 20

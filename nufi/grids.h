@@ -43,6 +43,8 @@ template <int dim> struct GridStructure {
     std::vector<double> values(n_points);
 
     std::vector<CellLocation<dim>> locations(n_points);
+
+#pragma omp parallel for if (!omp_in_parallel())
     for (unsigned int p = 0; p < n_points; ++p)
       locations[p] = locator->locate(points[p]);
 
