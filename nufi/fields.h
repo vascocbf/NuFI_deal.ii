@@ -11,7 +11,6 @@
 #include <vector>
 
 using namespace dealii;
-
 inline std::vector<double> make_x_eval(size_t Nx) {
   std::vector<double> x_eval_E;
 

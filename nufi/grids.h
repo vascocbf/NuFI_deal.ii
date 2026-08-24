@@ -2,7 +2,6 @@
 #define GRIDS_H
 
 #include "nufi/cells.h"
-#include "nufi/parameters.h"
 
 #include <deal.II/base/exceptions.h>
 #include <deal.II/dofs/dof_handler.h>
