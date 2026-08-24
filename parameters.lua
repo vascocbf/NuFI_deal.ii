@@ -16,7 +16,7 @@ local NV = 256
 -- 1 -> landau-damping
 -- 2 -> maxwellian
 -- 3 -> bump-on-tail
-local f0_TYPE = 1
+local f0_TYPE = 0
 
 
 -- deal.ii options

@@ -87,52 +87,169 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
     return results;
   }
 
-  std::vector<double> Ex(x_size);
-  std::vector<double> tmp(x_size);
+#pragma omp parallel
+  {
+    const int nthreads = omp_get_num_threads();
+    const int tid = omp_get_thread_num();
+    const size_t chunk = (x_size + nthreads - 1) / nthreads;
+    const size_t begin = std::min(x_size, chunk * static_cast<size_t>(tid));
+    const size_t end = std::min(x_size, chunk * static_cast<size_t>(tid + 1));
+    const size_t local_n = end - begin;
 
-  // We omit the initial half-step.
-  while (--n) {
+    if (local_n > 0) {
+      std::vector<double> Xl(X.begin() + begin, X.begin() + end);
+      std::vector<double> Ul(U.begin() + begin, U.begin() + end);
+      std::vector<double> Exl(local_n);
+      std::vector<double> tmpl(local_n);
 
-    const GridStructure<Parameters::DIMENSION> &grid_struct =
-        grid_structures[phi_history[n].grid_version];
+      unsigned int nn = n;
+      while (--nn) {
+        const GridStructure<Parameters::DIMENSION> &grid_struct =
+            grid_structures[phi_history[nn].grid_version];
 
-    for (size_t k = 0; k < x_size; ++k)
-      X[k] = X[k] - Parameters::DT * U[k];
+        for (size_t k = 0; k < local_n; ++k)
+          Xl[k] -= Parameters::DT * Ul[k];
 
-    AssertThrow(phi_history[n].solution.size() ==
-                    grid_struct.dof_handler->n_dofs(),
-                ExcMessage("[NuFISolver::eval_ftilda_batch] Solution size = " +
-                           std::to_string(phi_history[n].solution.size()) +
-                           ", expected by grid_struct = " +
-                           std::to_string(grid_struct.dof_handler->n_dofs())));
-    AssertThrow(grid_struct.grid_version == phi_history[n].grid_version,
-                ExcMessage("[NuFISolver::eval_ftilda_batch] grid.grid_version "
-                           "not equal to phi_history[n].grid_version"));
+        AssertThrow(
+            phi_history[nn].solution.size() ==
+                grid_struct.dof_handler->n_dofs(),
+            ExcMessage("[NuFISolver::eval_ftilda_batch] Solution size = " +
+                       std::to_string(phi_history[nn].solution.size()) +
+                       ", expected by grid_struct = " +
+                       std::to_string(grid_struct.dof_handler->n_dofs())));
+        AssertThrow(
+            grid_struct.grid_version == phi_history[nn].grid_version,
+            ExcMessage("[NuFISolver::eval_ftilda_batch] grid.grid_version "
+                       "not equal to phi_history[nn].grid_version"));
 
-    tmp = eval(X, grid_struct,
-               phi_history[n].solution); // one call for the whole batch
+        tmpl = eval(Xl, grid_struct, phi_history[nn].solution);
 
-    for (size_t k = 0; k < x_size; ++k) {
-      Ex[k] = -tmp[k];
-      U[k] = U[k] + Parameters::DT * Ex[k];
+        for (size_t k = 0; k < local_n; ++k) {
+          Exl[k] = -tmpl[k];
+          Ul[k] += Parameters::DT * Exl[k];
+        }
+      }
+
+      // Final half-step, nn == 0 here.
+      const GridStructure<Parameters::DIMENSION> &grid_struct =
+          grid_structures[phi_history[nn].grid_version];
+
+      for (size_t k = 0; k < local_n; ++k)
+        Xl[k] -= Parameters::DT * Ul[k];
+
+      tmpl = eval(Xl, grid_struct, phi_history[nn].solution);
+
+      for (size_t k = 0; k < local_n; ++k) {
+        Exl[k] = -tmpl[k];
+        Ul[k] += 0.5 * Parameters::DT * Exl[k];
+      }
+
+      for (size_t k = 0; k < local_n; ++k)
+        results[begin + k] = f0(Xl[k], Ul[k]);
     }
   }
 
-  // The final half-step.
-  const GridStructure<Parameters::DIMENSION> &grid_struct =
-      grid_structures[phi_history[n].grid_version];
+  return results;
+}
 
-  for (size_t k = 0; k < x_size; ++k)
-    X[k] = X[k] - Parameters::DT * U[k];
+std::vector<double> NuFISolver::eval_f_batch(
+    unsigned int n, std::vector<double> X, std::vector<double> U,
+    const std::vector<GridStructure<1>> &grid_structures,
+    const std::vector<SolutionSnapshot<1>> &phi_history) const {
 
-  tmp = eval(X, grid_struct, phi_history[n].solution);
+  const size_t x_size = X.size();
+  std::vector<double> results(x_size);
 
-  for (size_t k = 0; k < x_size; ++k) {
-    Ex[k] = -tmp[k];
-    U[k] = U[k] + 0.5 * Parameters::DT * Ex[k];
+  if (n == 0) {
+    for (size_t k = 0; k < x_size; ++k)
+      results[k] = f0(X[k], U[k]);
+    return results;
   }
-  for (size_t k = 0; k < x_size; ++k)
-    results[k] = f0(X[k], U[k]);
+
+#pragma omp parallel
+  {
+    const int nthreads = omp_get_num_threads();
+    const int tid = omp_get_thread_num();
+    const size_t chunk = (x_size + nthreads - 1) / nthreads;
+    const size_t begin = std::min(x_size, chunk * static_cast<size_t>(tid));
+    const size_t end = std::min(x_size, chunk * static_cast<size_t>(tid + 1));
+    const size_t local_n = end - begin;
+
+    if (local_n > 0) {
+      std::vector<double> Xl(X.begin() + begin, X.begin() + end);
+      std::vector<double> Ul(U.begin() + begin, U.begin() + end);
+      std::vector<double> Exl(local_n);
+      std::vector<double> tmpl(local_n);
+
+      // Initial half-step, using phi_history[n] (n not yet decremented).
+      {
+        const GridStructure<Parameters::DIMENSION> &grid_struct =
+            grid_structures[phi_history[n].grid_version];
+
+        AssertThrow(
+            phi_history[n].solution.size() == grid_struct.dof_handler->n_dofs(),
+            ExcMessage("[NuFISolver::eval_f_batch] Solution size = " +
+                       std::to_string(phi_history[n].solution.size()) +
+                       ", expected by grid_struct = " +
+                       std::to_string(grid_struct.dof_handler->n_dofs())));
+        AssertThrow(grid_struct.grid_version == phi_history[n].grid_version,
+                    ExcMessage("[NuFISolver::eval_f_batch] grid.grid_version "
+                               "not equal to phi_history[n].grid_version"));
+
+        tmpl = eval(Xl, grid_struct, phi_history[n].solution);
+
+        for (size_t k = 0; k < local_n; ++k) {
+          Exl[k] = -tmpl[k];
+          Ul[k] += 0.5 * Parameters::DT * Exl[k];
+        }
+      }
+
+      unsigned int nn = n;
+      while (--nn) {
+        const GridStructure<Parameters::DIMENSION> &grid_struct =
+            grid_structures[phi_history[nn].grid_version];
+
+        for (size_t k = 0; k < local_n; ++k)
+          Xl[k] -= Parameters::DT * Ul[k];
+
+        AssertThrow(
+            phi_history[nn].solution.size() ==
+                grid_struct.dof_handler->n_dofs(),
+            ExcMessage("[NuFISolver::eval_f_batch] Solution size = " +
+                       std::to_string(phi_history[nn].solution.size()) +
+                       ", expected by grid_struct = " +
+                       std::to_string(grid_struct.dof_handler->n_dofs())));
+        AssertThrow(grid_struct.grid_version == phi_history[nn].grid_version,
+                    ExcMessage("[NuFISolver::eval_f_batch] grid.grid_version "
+                               "not equal to phi_history[nn].grid_version"));
+
+        tmpl = eval(Xl, grid_struct, phi_history[nn].solution);
+
+        for (size_t k = 0; k < local_n; ++k) {
+          Exl[k] = -tmpl[k];
+          Ul[k] += Parameters::DT * Exl[k];
+        }
+      }
+
+      // Final half-step, nn == 0 here.
+      const GridStructure<Parameters::DIMENSION> &grid_struct =
+          grid_structures[phi_history[nn].grid_version];
+
+      for (size_t k = 0; k < local_n; ++k)
+        Xl[k] -= Parameters::DT * Ul[k];
+
+      tmpl = eval(Xl, grid_struct, phi_history[nn].solution);
+
+      for (size_t k = 0; k < local_n; ++k) {
+        Exl[k] = -tmpl[k];
+        Ul[k] += 0.5 * Parameters::DT * Exl[k];
+      }
+
+      for (size_t k = 0; k < local_n; ++k)
+        results[begin + k] = f0(Xl[k], Ul[k]);
+    }
+  }
+
   return results;
 }
 

@@ -29,6 +29,10 @@ public:
                     std::vector<double> U,
                     const std::vector<GridStructure<1>> &grid_structures,
                     const std::vector<SolutionSnapshot<1>> &phi_history) const;
+  std::vector<double>
+  eval_f_batch(unsigned int n, std::vector<double> X, std::vector<double> U,
+               const std::vector<GridStructure<1>> &grid_structures,
+               const std::vector<SolutionSnapshot<1>> &phi_history) const;
 
   std::vector<double>
   eval_f(unsigned int n, std::vector<double> x, double u,
