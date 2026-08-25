@@ -22,15 +22,19 @@ using namespace dealii;
 std::vector<double>
 NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
                    const std::vector<GridStructure<1>> &grid_struct,
-                   const std::vector<SolutionSnapshot<1>> &phi_history) const {
+                   const std::vector<SolutionSnapshot<1>> &phi_history,
+                   bool is_electron) const {
   const double dt = Parameters::DT;
   size_t x_size = X.size();
+
+  const double charge_to_mass =
+      is_electron ? 1.0 : -1.0 / Parameters::MASS_RATIO;
 
   std::vector<double> U(x_size, u);
   std::vector<double> results(x_size);
   if (n == 0) {
     for (size_t i = 0; i < x_size; ++i)
-      results[i] = f0(X[i], U[i]);
+      results[i] = is_electron ? f0(X[i], U[i]) : f0_ion(X[i], U[i]);
     return results;
   }
 
@@ -42,7 +46,7 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * dt * Ex[i];
+    U[i] = U[i] + 0.5 * dt * charge_to_mass * Ex[i];
   }
 
   while (--n) {
@@ -53,7 +57,7 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
                phi_history[n].solution); // call eval only once
     for (size_t i = 0; i < x_size; ++i) {
       Ex[i] = -tmp[i];
-      U[i] = U[i] + dt * Ex[i];
+      U[i] = U[i] + dt * charge_to_mass * Ex[i];
     }
   }
 
@@ -65,25 +69,29 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
              phi_history[n].solution); // call eval only once
   for (size_t i = 0; i < x_size; ++i) {
     Ex[i] = -tmp[i];
-    U[i] = U[i] + 0.5 * dt * Ex[i];
+    U[i] = U[i] + 0.5 * dt * charge_to_mass * Ex[i];
   }
 
   for (size_t i = 0; i < x_size; ++i)
-    results[i] = f0(X[i], U[i]);
+    results[i] = is_electron ? f0(X[i], U[i]) : f0_ion(X[i], U[i]);
   return results;
 }
 
 std::vector<double> NuFISolver::eval_ftilda_batch(
     unsigned int n, std::vector<double> X, std::vector<double> U,
     const std::vector<GridStructure<1>> &grid_structures,
-    const std::vector<SolutionSnapshot<1>> &phi_history) const {
+    const std::vector<SolutionSnapshot<1>> &phi_history,
+    bool is_electron) const {
 
   const size_t x_size = X.size();
   std::vector<double> results(x_size);
 
+  const double charge_to_mass =
+      is_electron ? 1.0 : -1.0 / Parameters::MASS_RATIO;
+
   if (n == 0) {
     for (size_t k = 0; k < x_size; ++k)
-      results[k] = f0(X[k], U[k]);
+      results[k] = is_electron ? f0(X[k], U[k]) : f0_ion(X[k], U[k]);
     return results;
   }
 
@@ -126,7 +134,7 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
 
         for (size_t k = 0; k < local_n; ++k) {
           Exl[k] = -tmpl[k];
-          Ul[k] += Parameters::DT * Exl[k];
+          Ul[k] += Parameters::DT * charge_to_mass * Exl[k];
         }
       }
 
@@ -141,28 +149,34 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
 
       for (size_t k = 0; k < local_n; ++k) {
         Exl[k] = -tmpl[k];
-        Ul[k] += 0.5 * Parameters::DT * Exl[k];
+        Ul[k] += .5 * Parameters::DT * charge_to_mass * Exl[k];
       }
 
       for (size_t k = 0; k < local_n; ++k)
-        results[begin + k] = f0(Xl[k], Ul[k]);
+        results[begin + k] =
+            is_electron ? f0(Xl[k], Ul[k]) : f0_ion(Xl[k], Ul[k]);
     }
   }
 
   return results;
 }
 
-std::vector<double> NuFISolver::eval_f_batch(
-    unsigned int n, std::vector<double> X, std::vector<double> U,
-    const std::vector<GridStructure<1>> &grid_structures,
-    const std::vector<SolutionSnapshot<1>> &phi_history) const {
+std::vector<double>
+NuFISolver::eval_f_batch(unsigned int n, std::vector<double> X,
+                         std::vector<double> U,
+                         const std::vector<GridStructure<1>> &grid_structures,
+                         const std::vector<SolutionSnapshot<1>> &phi_history,
+                         bool is_electron) const {
 
   const size_t x_size = X.size();
   std::vector<double> results(x_size);
 
+  const double charge_to_mass =
+      is_electron ? 1.0 : -1.0 / Parameters::MASS_RATIO;
+
   if (n == 0) {
     for (size_t k = 0; k < x_size; ++k)
-      results[k] = f0(X[k], U[k]);
+      results[k] = is_electron ? f0(X[k], U[k]) : f0_ion(X[k], U[k]);
     return results;
   }
 
@@ -200,7 +214,7 @@ std::vector<double> NuFISolver::eval_f_batch(
 
         for (size_t k = 0; k < local_n; ++k) {
           Exl[k] = -tmpl[k];
-          Ul[k] += 0.5 * Parameters::DT * Exl[k];
+          Ul[k] += 0.5 * Parameters::DT * charge_to_mass * Exl[k];
         }
       }
 
@@ -227,7 +241,7 @@ std::vector<double> NuFISolver::eval_f_batch(
 
         for (size_t k = 0; k < local_n; ++k) {
           Exl[k] = -tmpl[k];
-          Ul[k] += Parameters::DT * Exl[k];
+          Ul[k] += Parameters::DT * charge_to_mass * Exl[k];
         }
       }
 
@@ -242,31 +256,32 @@ std::vector<double> NuFISolver::eval_f_batch(
 
       for (size_t k = 0; k < local_n; ++k) {
         Exl[k] = -tmpl[k];
-        Ul[k] += 0.5 * Parameters::DT * Exl[k];
+        Ul[k] += 0.5 * Parameters::DT * charge_to_mass * Exl[k];
       }
 
       for (size_t k = 0; k < local_n; ++k)
-        results[begin + k] = f0(Xl[k], Ul[k]);
+        results[begin + k] =
+            is_electron ? f0(Xl[k], Ul[k]) : f0_ion(Xl[k], Ul[k]);
     }
   }
 
   return results;
 }
 
-std::vector<double>
-NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
-                     const std::vector<GridStructure<1>> &grid_struct,
-                     const std::vector<SolutionSnapshot<1>> &phi_history,
-                     const unsigned int Nv) const {
+std::vector<double> NuFISolver::eval_species_density(
+    unsigned int n, const std::vector<double> &X,
+    const std::vector<GridStructure<1>> &grid_struct,
+    const std::vector<SolutionSnapshot<1>> &phi_history, unsigned int Nv,
+    double v_min_domain, double v_max_domain, bool is_electron) const {
+
   const size_t x_size = X.size();
   const size_t total = static_cast<size_t>(Nv) * x_size;
 
   std::vector<double> X_all(total);
   std::vector<double> U_all(total);
 
-  const double dv =
-      (Parameters::V_DOMAIN_RIGHT - Parameters::V_DOMAIN_LEFT) / Nv;
-  const double v_min = Parameters::V_DOMAIN_LEFT + .5 * dv;
+  const double dv = (v_max_domain - v_min_domain) / Nv;
+  const double v_min = v_min_domain + .5 * dv;
 
 #pragma omp parallel for
   for (unsigned int i = 0; i < Nv; ++i) {
@@ -277,17 +292,48 @@ NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
               U_all.begin() + static_cast<size_t>(i + 1) * x_size, v_i);
   }
 
-  std::vector<double> ftilda_all = eval_ftilda_batch(
-      n, std::move(X_all), std::move(U_all), grid_struct, phi_history);
+  std::vector<double> ftilda_all =
+      eval_ftilda_batch(n, std::move(X_all), std::move(U_all), grid_struct,
+                        phi_history, is_electron);
 
-  std::vector<double> integral(x_size, 0.0);
+  std::vector<double> density(x_size, 0.0);
   for (unsigned int i = 0; i < Nv; ++i)
     for (size_t ii = 0; ii < x_size; ++ii)
-      integral[ii] += ftilda_all[static_cast<size_t>(i) * x_size + ii];
+      density[ii] += ftilda_all[static_cast<size_t>(i) * x_size + ii];
 
   for (size_t i = 0; i < x_size; ++i)
-    integral[i] = 1 - integral[i] * dv;
-  return integral;
+    density[i] *= dv;
+
+  return density;
+}
+
+std::vector<double>
+NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,
+                     const std::vector<GridStructure<1>> &grid_struct,
+                     const std::vector<SolutionSnapshot<1>> &phi_history,
+                     const unsigned int Nv) const {
+
+  std::vector<double> n_electron = eval_species_density(
+      n, X, grid_struct, phi_history, Nv, Parameters::V_DOMAIN_LEFT,
+      Parameters::V_DOMAIN_RIGHT, /*is_electron=*/true);
+
+  if (!Parameters::IONS_ENABLED) {
+    std::vector<double> rho(X.size());
+    for (size_t i = 0; i < X.size(); ++i)
+      rho[i] = 1.0 - n_electron[i];
+    return rho;
+  }
+
+  std::vector<double> n_ion = eval_species_density(
+      n, X, grid_struct, phi_history, Parameters::NV_ION,
+      Parameters::ION_V_DOMAIN_LEFT, Parameters::ION_V_DOMAIN_RIGHT,
+      /*is_electron=*/false);
+
+  std::vector<double> rho(X.size());
+  for (size_t i = 0; i < X.size(); ++i)
+    rho[i] = n_ion[i] - n_electron[i];
+
+  return rho;
 }
 
 std::vector<double>

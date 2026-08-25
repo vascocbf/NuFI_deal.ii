@@ -28,16 +28,19 @@ public:
   eval_ftilda_batch(unsigned int n, std::vector<double> X,
                     std::vector<double> U,
                     const std::vector<GridStructure<1>> &grid_structures,
-                    const std::vector<SolutionSnapshot<1>> &phi_history) const;
+                    const std::vector<SolutionSnapshot<1>> &phi_history,
+                    bool is_electron = true) const;
   std::vector<double>
   eval_f_batch(unsigned int n, std::vector<double> X, std::vector<double> U,
                const std::vector<GridStructure<1>> &grid_structures,
-               const std::vector<SolutionSnapshot<1>> &phi_history) const;
+               const std::vector<SolutionSnapshot<1>> &phi_history,
+               bool is_electron = true) const;
 
   std::vector<double>
   eval_f(unsigned int n, std::vector<double> x, double u,
          const std::vector<GridStructure<1>> &grid_struct,
-         const std::vector<SolutionSnapshot<1>> &phi_history) const;
+         const std::vector<SolutionSnapshot<1>> &phi_history,
+         bool is_electron = true) const;
 
   std::vector<double>
   eval_rho_points(unsigned int n, const std::vector<Point<1>> &points,
@@ -46,6 +49,13 @@ public:
                   const unsigned int Nv) const;
 
 private:
+  std::vector<double>
+  eval_species_density(unsigned int n, const std::vector<double> &X,
+                       const std::vector<GridStructure<1>> &grid_struct,
+                       const std::vector<SolutionSnapshot<1>> &phi_history,
+                       unsigned int Nv, double v_min_domain,
+                       double v_max_domain, bool is_electron) const;
+
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);
 
   double Lx = Parameters::LX;

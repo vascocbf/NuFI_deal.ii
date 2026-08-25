@@ -84,6 +84,17 @@ inline double f0(const double x, const double v,
   return result;
 }
 
+inline double f0_ion(const double x, const double v) {
+  const double Mr = Parameters::MASS_RATIO;
+  const double eps = Parameters::ION_EPS;
+  const double k = Parameters::WAVE_NR;
+  const double norm = Parameters::F0_FACTOR *
+                      std::sqrt(Mr); // 1/(v_th*sqrt(2pi)), v_th=1/sqrt(Mr)
+
+  const double prefactor = 1.0 + eps * std::cos(k * x);
+  return prefactor * norm * std::exp(-0.5 * Mr * v * v);
+}
+
 // wrapper for eval_point() { VectorTools::point_values() }
 inline std::vector<double> eval(std::vector<double> &X,
                                 const GridStructure<1> &grid,

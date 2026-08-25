@@ -18,6 +18,8 @@ local NV = 256
 -- 3 -> bump-on-tail
 local f0_TYPE = 0
 
+local IONS_ENABLED = true
+
 
 -- deal.ii options
 local GLOBAL_REFINEMENT = 8
@@ -47,6 +49,13 @@ local SAVE_INT_E_ALWAYS = true
 local LX = math.abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT)
 local PLOT_NX = 512
 
+-- Ion options
+local MASS_RATIO = 1000
+local ION_EPS = 0.01
+local ION_V_DOMAIN_LEFT = -0.4
+local ION_V_DOMAIN_RIGHT = 0.4
+local NV_ION = 128
+
 parameters = {
   DIMENSION = DIMENSION,
 
@@ -63,6 +72,8 @@ parameters = {
 
   f0_TYPE = f0_TYPE,
 
+  IONS_ENABLED = IONS_ENABLED,
+
   -- deal.ii options
   GLOBAL_REFINEMENT = GLOBAL_REFINEMENT,
   FE_DEGREE = FE_DEGREE,
@@ -78,6 +89,13 @@ parameters = {
   EPS = EPS,
   WAVE_NR = WAVE_NR,
   F0_FACTOR = F0_FACTOR, -- 1/sqrt(2pi)
+
+  MASS_RATIO = MASS_RATIO,
+  ION_EPS = ION_EPS,
+  ION_V_DOMAIN_LEFT = ION_V_DOMAIN_LEFT,
+  ION_V_DOMAIN_RIGHT = ION_V_DOMAIN_RIGHT,
+  NV_ION = NV_ION,
+
 
   -- NUFI options
   DT = DT,

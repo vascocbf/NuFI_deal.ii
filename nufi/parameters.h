@@ -28,6 +28,8 @@ inline double DV;
 // 3 -> bump-on-tail
 inline size_t f0_TYPE;
 
+inline bool IONS_ENABLED;
+
 // deal.ii options
 inline unsigned int GLOBAL_REFINEMENT;
 inline unsigned int FE_DEGREE;
@@ -55,6 +57,12 @@ inline size_t PLOT_NX;
 inline double PLOT_DX;
 inline std::string PLOT_DIR;
 
+inline double MASS_RATIO;
+inline double ION_EPS;
+inline double ION_V_DOMAIN_LEFT;
+inline double ION_V_DOMAIN_RIGHT;
+inline unsigned int NV_ION;
+
 inline void load_lua_config(const std::string &luaFilePath) {
   LuaConfig config(luaFilePath, "parameters");
 
@@ -70,6 +78,8 @@ inline void load_lua_config(const std::string &luaFilePath) {
   DV = config.get<double>("DV");
 
   f0_TYPE = static_cast<size_t>(config.get<int>("f0_TYPE"));
+
+  IONS_ENABLED = config.get<bool>("IONS_ENABLED");
 
   GLOBAL_REFINEMENT =
       static_cast<unsigned int>(config.get<int>("GLOBAL_REFINEMENT"));
@@ -87,6 +97,12 @@ inline void load_lua_config(const std::string &luaFilePath) {
   EPS = config.get<double>("EPS");
   WAVE_NR = config.get<double>("WAVE_NR");
   F0_FACTOR = config.get<double>("F0_FACTOR");
+
+  MASS_RATIO = config.get<double>("MASS_RATIO");
+  ION_EPS = config.get<double>("ION_EPS");
+  ION_V_DOMAIN_LEFT = config.get<double>("ION_V_DOMAIN_LEFT");
+  ION_V_DOMAIN_RIGHT = config.get<double>("ION_V_DOMAIN_RIGHT");
+  NV_ION = static_cast<unsigned int>(config.get<int>("NV_ION"));
 
   DT = config.get<double>("DT");
   TMAX = static_cast<unsigned int>(config.get<int>("TMAX"));
