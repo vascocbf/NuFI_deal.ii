@@ -43,6 +43,8 @@ template <int dim> struct GridStructure {
     std::vector<double> values(n_points);
 
     std::vector<CellLocation<dim>> locations(n_points);
+
+#pragma omp parallel for if (!omp_in_parallel())
     for (unsigned int p = 0; p < n_points; ++p)
       locations[p] = locator->locate(points[p]);
 
@@ -54,6 +56,7 @@ template <int dim> struct GridStructure {
     std::vector<std::vector<unsigned int>> groups;
     cells.reserve(cell_to_indices.size());
     groups.reserve(cell_to_indices.size());
+
     for (auto &kv : cell_to_indices) {
       groups.push_back(std::move(kv.second));
       cells.push_back(locations[groups.back().front()].cell);
@@ -139,8 +142,6 @@ update_solution_history(std::vector<SolutionSnapshot<dim>> &solution_history,
 
   snapshot.grid_version = current_grid_version;
 
-  // where I might need to change something to pass the correct solution or in
-  // the correct form
   Vector<double> solution = poisson.get_solution();
   snapshot.solution = solution;
 

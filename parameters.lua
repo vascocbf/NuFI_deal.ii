@@ -43,7 +43,7 @@ local TMAX = 100
 
 -- Plotting options
 local PLOT_FREQUENCY = 20
-
+local SAVE_INT_E_ALWAYS = true
 local LX = math.abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT)
 local PLOT_NX = 512
 
@@ -85,6 +85,7 @@ parameters = {
 
   -- Plotting options
   PLOT_FREQUENCY = PLOT_FREQUENCY,
+  SAVE_INT_E_ALWAYS = SAVE_INT_E_ALWAYS,
   PLOT_NX = PLOT_NX,
   PLOT_DX = LX / PLOT_NX,
   PLOT_DIR = "results/",

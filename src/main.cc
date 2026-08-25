@@ -62,23 +62,23 @@ template <int dim> void run() {
     // END: diagnostics
 
     double compute_start = timer.elapsed();
+
     // compute rho
     poisson.set_rhs_function([&](const std::vector<Point<1>> &points) {
       std::vector<double> x(points.size());
-
       for (size_t i = 0; i < points.size(); ++i)
         x[i] = points[i][0];
-
       return solver.eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
     });
 
     if (it == 0 ||
         (it % Parameters::REFINE_FREQUENCY == 0 &&
          poisson.get_dof_handler().n_dofs() < Parameters::MAX_DOFS)) {
-      refine_time = poisson.solve_step(it, grid_versions, true);
+      refine_time =
+          poisson.solve_step(it, grid_versions, true); // Refine and Solve
       compute_time = timer.elapsed() - compute_start - refine_time;
     } else {
-      poisson.solve_step(it, grid_versions, false);
+      poisson.solve_step(it, grid_versions, false); // Dont refine and Solve
       compute_time = timer.elapsed() - compute_start;
     }
     update_solution_history(phi_history, poisson,
@@ -86,6 +86,18 @@ template <int dim> void run() {
 
     error_file << it << " " << poisson.get_error_estimate() << "\n";
     error_file.flush();
+
+    if (Parameters::SAVE_INT_E_ALWAYS) {
+      // Save |E|^2; cheap because uses just calculated solution
+      // (does not to the entire backward characteristics)
+      const double int_E_sq_now =
+          0.5 * integral_space_vector_squared(
+                    grid_versions[phi_history.back().grid_version],
+                    phi_history.back().solution, Parameters::PLOT_NX);
+
+      int_E_squared.push_back(int_E_sq_now);
+      int_E_squared_times.push_back(it * Parameters::DT);
+    }
 
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;
@@ -106,8 +118,11 @@ template <int dim> void run() {
       save_Efield(snap,
                   Parameters::PLOT_DIR + "E_" + std::to_string(it) + ".dat");
 
-      int_E_squared.push_back(compute_int_E_squared(snap));
-      int_E_squared_times.push_back(it * Parameters::DT);
+      if (!Parameters::SAVE_INT_E_ALWAYS) {
+        // OLD; Not needed because this is done above
+        int_E_squared.push_back(compute_int_E_squared(snap));
+        int_E_squared_times.push_back(it * Parameters::DT);
+      }
       save_time_series(int_E_squared_times, int_E_squared,
                        Parameters::PLOT_DIR + "int_E_sqr.dat");
 

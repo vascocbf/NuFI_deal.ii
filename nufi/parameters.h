@@ -50,6 +50,7 @@ inline unsigned int TMAX;
 
 // Plotting options
 inline int PLOT_FREQUENCY;
+inline bool SAVE_INT_E_ALWAYS;
 inline size_t PLOT_NX;
 inline double PLOT_DX;
 inline std::string PLOT_DIR;
@@ -76,6 +77,7 @@ inline void load_lua_config(const std::string &luaFilePath) {
   CONVERGENCE_ITERATIONS =
       static_cast<unsigned int>(config.get<int>("CONVERGENCE_ITERATIONS"));
   CONVERGENCE_LIMIT = config.get<double>("CONVERGENCE_LIMIT");
+  MAX_DOFS = static_cast<unsigned int>(config.get<int>("MAX_DOFS"));
 
   REFINE_FREQUENCY =
       static_cast<unsigned int>(config.get<int>("REFINE_FREQUENCY"));
@@ -90,6 +92,7 @@ inline void load_lua_config(const std::string &luaFilePath) {
   TMAX = static_cast<unsigned int>(config.get<int>("TMAX"));
 
   PLOT_FREQUENCY = config.get<int>("PLOT_FREQUENCY");
+  SAVE_INT_E_ALWAYS = config.get<bool>("SAVE_INT_E_ALWAYS");
   PLOT_NX = static_cast<size_t>(config.get<int>("PLOT_NX"));
   PLOT_DX = config.get<double>("PLOT_DX");
   PLOT_DIR = config.get<std::string>("PLOT_DIR");
