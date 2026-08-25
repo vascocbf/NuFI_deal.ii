@@ -33,6 +33,7 @@ inline unsigned int GLOBAL_REFINEMENT;
 inline unsigned int FE_DEGREE;
 inline unsigned int CONVERGENCE_ITERATIONS;
 inline double CONVERGENCE_LIMIT;
+inline unsigned int MAX_DOFS;
 
 // Adaptive refinement options
 inline unsigned int REFINE_FREQUENCY;

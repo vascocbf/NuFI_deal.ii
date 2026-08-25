@@ -72,7 +72,9 @@ template <int dim> void run() {
       return solver.eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
     });
 
-    if (it % Parameters::REFINE_FREQUENCY == 0) {
+    if (it == 0 ||
+        (it % Parameters::REFINE_FREQUENCY == 0 &&
+         poisson.get_dof_handler().n_dofs() < Parameters::MAX_DOFS)) {
       refine_time = poisson.solve_step(it, grid_versions, true);
       compute_time = timer.elapsed() - compute_start - refine_time;
     } else {
