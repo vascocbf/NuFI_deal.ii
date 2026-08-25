@@ -33,7 +33,7 @@ ______________________________________________________________________
 
 dimensions: 1x1v
 
-status: builds, runs, fails on runtime
+status: builds, runs, fails on runtime for very high nr of DOFs
 
 solver didnt converge but error was of order e-7 for 9th grid version with 4k dofs, failed on first step after last refinement, probably due to "over refinement" due to the acumulated error at low refinement levels.
 
@@ -46,6 +46,7 @@ notes:
 
 to-do:
 
+- Look at multigrid solvers (steps 16, 37, 64)
 - add ions
 - for 1x2v add electro-magnetic
 - test other f0 s
