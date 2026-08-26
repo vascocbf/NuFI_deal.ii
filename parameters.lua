@@ -9,7 +9,7 @@ local X_DOMAIN_RIGHT = 4 * math.pi
 local V_DOMAIN_LEFT = -10.0
 local V_DOMAIN_RIGHT = 10.0
 
-local NV = 256
+local NV = 512
 
 -- f0_TYPE:
 -- 0 -> twos-stream
@@ -40,7 +40,7 @@ local F0_FACTOR = 0.39894228040143267793994
 
 
 -- NUFI options
-local DT = 1. / 10.
+local DT = 1. / 16.
 local TMAX = 100
 
 -- Plotting options
