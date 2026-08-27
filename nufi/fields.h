@@ -14,37 +14,82 @@
 using namespace dealii;
 using std::array;
 
-inline std::vector<double> make_x_eval(size_t Nx) {
-  std::vector<double> x_eval_E;
+template <size_t X_DIM>
+inline std::vector<array<double, X_DIM>>
+make_x_eval(const array<size_t, X_DIM> &Nx) {
 
-  double dx = (Parameters::X_DOMAIN_RIGHT - Parameters::X_DOMAIN_LEFT) / Nx;
+  array<double, X_DIM> dx = {};
 
-  for (unsigned int i = 0; i < Nx; ++i)
-    x_eval_E.push_back(Parameters::X_DOMAIN_LEFT + (i + 0.5) * dx);
+  for (size_t d = 0; d < X_DIM; ++d)
+    dx[d] = (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
+            static_cast<double>(Nx[d]);
 
-  return x_eval_E;
+  size_t n_points = 1;
+  for (size_t d = 0; d < X_DIM; ++d)
+    n_points *= Nx[d];
+
+  std::vector<array<double, X_DIM>> x_eval(n_points);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < n_points; ++i) {
+    size_t index = i;
+    array<double, X_DIM> x = {};
+
+    for (size_t d = 0; d < X_DIM; ++d) {
+      size_t j = index % Nx[d];
+      index /= Nx[d];
+      x[d] =
+          Parameters::X_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dx[d];
+    }
+    x_eval[i] = x;
+  }
+
+  return x_eval;
 }
 
-inline void reset_x_eval(std::vector<double> &x_vals) {
-  const size_t Nx = x_vals.size();
-  const double dx = Parameters::LX / Nx;
-  for (size_t i = 0; i < Nx; ++i)
-    x_vals[i] = Parameters::X_DOMAIN_LEFT + i * dx;
+template <size_t X_DIM>
+inline void reset_x_eval(std::vector<array<double, X_DIM>> &x_vals,
+                         array<size_t, X_DIM> &Nx) {
+
+  array<double, X_DIM> dx = {};
+
+  for (size_t d = 0; d < X_DIM; ++d)
+    dx[d] = (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
+            static_cast<double>(Nx[d]);
+
+  size_t n_points = 1;
+  for (size_t d = 0; d < X_DIM; ++d)
+    n_points *= Nx[d];
+
+  if (x_vals.size() != n_points)
+    x_vals.resize(n_points);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < n_points; ++i) {
+    size_t index = i;
+    array<double, X_DIM> x = {};
+
+    for (size_t d = 0; d < X_DIM; ++d) {
+      size_t j = index % Nx[d];
+      index /= Nx[d];
+      x[d] =
+          Parameters::X_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dx[d];
+    }
+    x_vals[i] = x;
+  }
 };
 
-// TO-UPDATE for dim template =================
-
 template <size_t X_DIM, size_t V_DIM>
-double f0(const array<double, X_DIM> x, const array<double, V_DIM> v,
-          const size_t f0_type = Parameters::f0_TYPE) {
+inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
+                 const size_t f0_type = Parameters::f0_TYPE) {
 
   const double eps = Parameters::EPS;
   const double k = Parameters::WAVE_NR;
 
   const double factor = Parameters::F0_FACTOR;
 
-  auto maxwell = [factor](array<double, V_DIM> u, array<double, V_DIM> v0 = {},
-                          double v_th = 1) {
+  auto maxwell = [factor](array<double, V_DIM> &u,
+                          array<double, V_DIM> &v0 = {}, double v_th = 1) {
     double v2 = 0.0;
     for (std::size_t d = 0; d < V_DIM; ++d) {
       const double dv = u[d] - v0[d];
@@ -112,10 +157,9 @@ double f0(const array<double, X_DIM> x, const array<double, V_DIM> v,
   return result;
 }
 
-// TO-UPDATE for dim template =================
-
 template <size_t X_DIM, size_t V_DIM>
-double f0_ion(const array<double, X_DIM> x, const array<double, V_DIM> v) {
+inline double f0_ion(const array<double, X_DIM> &x,
+                     const array<double, V_DIM> &v) {
   const double Mr = Parameters::MASS_RATIO;
   const double eps = Parameters::ION_EPS;
   const double k = Parameters::WAVE_NR;
@@ -128,65 +172,103 @@ double f0_ion(const array<double, X_DIM> x, const array<double, V_DIM> v) {
   const double prefactor = 1.0 + eps * std::cos(k * x[0]);
 
   double v2 = 0;
-  for (size_t i; i < V_DIM; ++i)
+  for (size_t i = 0; i < V_DIM; ++i)
     v2 += v[i] * v[i];
 
   return prefactor * norm * std::exp(-0.5 * Mr * v2);
 }
 
 // wrapper for eval_point() { VectorTools::point_values() }
-// TO-UPDATE for dim template =================
-inline std::vector<double> eval(std::vector<double> &X,
-                                const GridStructure<1> &grid,
-                                const Vector<double> &solution) noexcept {
+
+// TODO: I will probably need a way to keep track of the size of my solution on
+//       each dimension. or at least call it from grid.dof_handler
+template <size_t X_DIM>
+inline std::vector<double>
+eval(const std::vector<array<double, X_DIM>> &X,
+     const GridStructure<X_DIM> &grid,
+     // TODO: type for vector or solutions might be wrong
+     const Vector<double> &solution) {
 
   AssertThrow(grid.dof_handler->n_dofs() == solution.size(),
               ExcMessage("@ eval(...) grid's number of DoFs doesn't correspond "
                          "to solution's size"));
 
   const size_t x_size = X.size();
-  std::vector<Point<1>> points(x_size);
+  std::vector<Point<X_DIM>> points(x_size);
 
-  for (size_t i = 0; i < x_size; ++i)
-    points[i][0] = X[i];
+  for (size_t i = 0; i < x_size; ++i) {
+    for (size_t d = 0; d < X_DIM; ++d)
+      points[i][d] = X[i][d];
+  }
 
-  return grid.eval_vector_grad(solution, points);
+  // TODO: template eval_vector_grad
+  return grid.eval_vector_grad<X_DIM>(solution, points);
 }
 
-inline double integral_space_vector(const GridStructure<1> &grid,
-                                    const Vector<double> &solution,
-                                    size_t Nx = Parameters::PLOT_NX) {
-  double integral = 0.0;
-  std::vector<double> x_eval = make_x_eval(Nx);
-  const double dx = Parameters::LX / Nx;
+template <size_t X_DIM>
+inline double
+integral_space_vector(const GridStructure<X_DIM> &grid,
+                      const Vector<double> &solution,
+                      const array<size_t, X_DIM> Nx = Parameters::PLOT_NX) {
 
-  std::vector<double> tmp = eval(x_eval, grid, solution);
-  for (size_t i = 0; i < Nx; ++i)
+  const auto X = make_x_eval<X_DIM>(Nx);
+
+  const std::vector<double> tmp = eval<X_DIM>(X, grid, solution);
+
+  array<double, X_DIM> dx = {};
+  double volume_element = 1.;
+
+  for (size_t d = 0; d < X_DIM; ++d) {
+    dx[d] =
+        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) / Nx[d];
+    volume_element *= dx[d];
+  }
+
+  double integral = 0.0;
+
+  for (size_t i = 0; i < tmp.size(); ++i)
     integral += tmp[i];
-  return integral * dx;
+
+  return integral * volume_element;
 }
 
-inline double integral_space_vector_squared(const GridStructure<1> &grid,
-                                            const Vector<double> &solution,
-                                            size_t Nx = Parameters::PLOT_NX) {
+template <size_t X_DIM>
+inline double integral_space_vector_squared(
+    const GridStructure<X_DIM> &grid, const Vector<double> &solution,
+    const array<size_t, X_DIM> Nx = Parameters::PLOT_NX) {
+
+  const auto X = make_x_eval<X_DIM>(Nx);
+
+  const std::vector<double> tmp = eval<X_DIM>(X, grid, solution);
+
+  array<double, X_DIM> dx = {};
+  double volume_element = 1.;
+
+  for (size_t d = 0; d < X_DIM; ++d) {
+    dx[d] =
+        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) / Nx[d];
+    volume_element *= dx[d];
+  }
+
   double integral = 0.0;
-  std::vector<double> x_eval = make_x_eval(Nx);
-  const double dx = Parameters::LX / Nx;
 
-  std::vector<double> tmp = eval(x_eval, grid, solution);
-  for (size_t i = 0; i < Nx; ++i)
+  for (size_t i = 0; i < tmp.size(); ++i)
     integral += tmp[i] * tmp[i];
-  return integral * dx;
+
+  return integral * volume_element;
 }
 
-inline std::vector<double>
-Point_vector_to_double_vector(const std::vector<Point<1>> &Points) {
+template <size_t X_DIM>
+inline std::vector<array<double, X_DIM>>
+Point_vector_to_double_vector(const std::vector<Point<X_DIM>> &Points) {
   const size_t n_points = Points.size();
-  std::vector<double> vector(n_points);
+  std::vector<array<double, X_DIM>> result(n_points);
 
-  for (size_t i = 0; i < n_points; ++i)
-    vector[i] = Points[i][0];
+  for (size_t i = 0; i < n_points; ++i) {
+    for (size_t d = 0; d < X_DIM; ++d)
+      result[i][d] = Points[i][d];
+  }
 
-  return vector;
+  return result;
 }
 #endif // NUFI_FIELDS_H_
