@@ -44,7 +44,7 @@ template <int dim> struct GridStructure {
 
     std::vector<CellLocation<dim>> locations(n_points);
 
-    // #pragma omp parallel for if (!omp_in_parallel())
+#pragma omp parallel for if (!omp_in_parallel())
     for (unsigned int p = 0; p < n_points; ++p)
       locations[p] = locator->locate(points[p]);
 
@@ -62,12 +62,12 @@ template <int dim> struct GridStructure {
       cells.push_back(locations[groups.back().front()].cell);
     }
 
-    // #pragma omp parallel if (!omp_in_parallel())
+#pragma omp parallel if (!omp_in_parallel())
     {
       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
       FEPointEvaluation<dim, dim> evaluator(*mapping, *fe, update_gradients);
 
-      // #pragma omp for
+#pragma omp for
       for (long c = 0; c < static_cast<long>(cells.size()); ++c) {
         const auto &cell = cells[c];
         const auto &idxs = groups[c];
