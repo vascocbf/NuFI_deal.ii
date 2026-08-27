@@ -83,6 +83,7 @@ template <int dim> struct GridStructure {
         evaluator.evaluate(local_solution_buffer, EvaluationFlags::gradients);
 
         for (size_t k = 0; k < idxs.size(); ++k)
+          // TO-UPDATE for dim template =================
           values[idxs[k]] = evaluator.get_gradient(k)[0];
       }
     }

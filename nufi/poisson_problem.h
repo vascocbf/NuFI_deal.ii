@@ -71,6 +71,8 @@ public:
   PoissonProblem(unsigned int degree);
 
   void initialize();
+
+  // TO-UPDATE for dim template =================
   double solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
                     bool refining = false);
   void coarse_and_refine_grid(size_t it);
@@ -267,6 +269,8 @@ void PoissonProblem<dim>::save_grid_to_file(std::string &filename) const {
 //======//======//
 // dealii Poisson
 //======//======//
+
+// TO-UPDATE for dim template =================
 template <int dim> void PoissonProblem<dim>::create_mesh() {
 
   GridGenerator::hyper_cube(triangulation, Parameters::X_DOMAIN_LEFT,

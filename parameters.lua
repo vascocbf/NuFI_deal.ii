@@ -50,7 +50,7 @@ local DT = 1. / 16.
 local TMAX = 100
 
 -- Plotting options
-local PLOT_FREQUENCY = 20
+local PLOT_FREQUENCY = 160
 local SAVE_INT_E_ALWAYS = true
 local LX = math.abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT)
 local PLOT_NX = 512

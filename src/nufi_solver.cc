@@ -19,6 +19,8 @@
 
 using namespace dealii;
 
+// TO-UPDATE for dim template =================
+// here double u
 std::vector<double>
 NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
                    const std::vector<GridStructure<1>> &grid_struct,
@@ -76,6 +78,8 @@ NuFISolver::eval_f(unsigned int n, std::vector<double> X, double u,
     results[i] = is_electron ? f0(X[i], U[i]) : f0_ion(X[i], U[i]);
   return results;
 }
+
+// TO-UPDATE for dim template =================
 
 std::vector<double> NuFISolver::eval_ftilda_batch(
     unsigned int n, std::vector<double> X, std::vector<double> U,
@@ -160,6 +164,8 @@ std::vector<double> NuFISolver::eval_ftilda_batch(
 
   return results;
 }
+
+// TO-UPDATE for dim template =================
 
 std::vector<double>
 NuFISolver::eval_f_batch(unsigned int n, std::vector<double> X,
@@ -268,6 +274,8 @@ NuFISolver::eval_f_batch(unsigned int n, std::vector<double> X,
   return results;
 }
 
+// TO-UPDATE for dim template =================
+
 std::vector<double> NuFISolver::eval_species_density(
     unsigned int n, const std::vector<double> &X,
     const std::vector<GridStructure<1>> &grid_struct,
@@ -306,6 +314,8 @@ std::vector<double> NuFISolver::eval_species_density(
 
   return density;
 }
+
+// TO-UPDATE for dim template =================
 
 std::vector<double>
 NuFISolver::eval_rho(unsigned int n, std::vector<double> &X,

@@ -4,6 +4,7 @@
 #include "nufi/grids.h"
 #include "nufi/parameters.h"
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <deal.II/base/function.h>
@@ -11,6 +12,8 @@
 #include <vector>
 
 using namespace dealii;
+using std::array;
+
 inline std::vector<double> make_x_eval(size_t Nx) {
   std::vector<double> x_eval_E;
 
@@ -29,16 +32,27 @@ inline void reset_x_eval(std::vector<double> &x_vals) {
     x_vals[i] = Parameters::X_DOMAIN_LEFT + i * dx;
 };
 
-inline double f0(const double x, const double v,
-                 const size_t f0_type = Parameters::f0_TYPE) {
+// TO-UPDATE for dim template =================
+
+template <size_t X_DIM, size_t V_DIM>
+double f0(const array<double, X_DIM> x, const array<double, V_DIM> v,
+          const size_t f0_type = Parameters::f0_TYPE) {
+
   const double eps = Parameters::EPS;
   const double k = Parameters::WAVE_NR;
 
   const double factor = Parameters::F0_FACTOR;
 
-  auto maxwell = [factor](double u, double v = 0, double v_th = 1) {
-    return 1 / v_th * factor *
-           std::exp(-0.5 * (u - v) * (u - v) / (v_th * v_th));
+  auto maxwell = [factor](array<double, V_DIM> u, array<double, V_DIM> v0 = {},
+                          double v_th = 1) {
+    double v2 = 0.0;
+    for (std::size_t d = 0; d < V_DIM; ++d) {
+      const double dv = u[d] - v0[d];
+      v2 += dv * dv;
+    }
+
+    return factor / std::pow(v_th, static_cast<double>(V_DIM)) *
+           std::exp(-0.5 * v2 / (v_th * v_th));
   };
 
   double prefactor;
@@ -49,14 +63,23 @@ inline double f0(const double x, const double v,
   case 0: // two-stream
   {
     computed_max = maxwell(v);
-    prefactor = (1.0 + eps * std::cos(k * x)) * v * v;
-    result = prefactor * computed_max;
+
+    // TODO: For two-stream instability on higher dimensions
+    //       in which direction is the perturbation? just x_1 or more
+    //       same question on f0_ion
+    prefactor = (1.0 + eps * std::cos(k * x[0]));
+
+    double v2 = 0;
+    for (size_t i = 0; i < V_DIM; ++i)
+      v2 += v[i] * v[i];
+
+    result = prefactor * v2 * computed_max;
     break;
   }
   case 1: // Landau-damping
   {
     computed_max = maxwell(v);
-    prefactor = (1.0 + eps * std::cos(k * x));
+    prefactor = (1.0 + eps * std::cos(k * x[0]));
     result = prefactor * computed_max;
     break;
   }
@@ -72,8 +95,13 @@ inline double f0(const double x, const double v,
     const double beam_v = 3;
     const double alpha = beam_density / (1 - beam_density);
 
+    // Beam velocity only along v_1
+    array<double, V_DIM> beam_velocity = {};
+    beam_velocity[0] = beam_v;
+
     const double beam_max = maxwell(v, beam_v, beam_v_th);
     computed_max = maxwell(v);
+
     result = (1 - alpha) * computed_max + alpha * beam_max;
     break;
   }
@@ -84,18 +112,30 @@ inline double f0(const double x, const double v,
   return result;
 }
 
-inline double f0_ion(const double x, const double v) {
+// TO-UPDATE for dim template =================
+
+template <size_t X_DIM, size_t V_DIM>
+double f0_ion(const array<double, X_DIM> x, const array<double, V_DIM> v) {
   const double Mr = Parameters::MASS_RATIO;
   const double eps = Parameters::ION_EPS;
   const double k = Parameters::WAVE_NR;
   const double norm = Parameters::F0_FACTOR *
                       std::sqrt(Mr); // 1/(v_th*sqrt(2pi)), v_th=1/sqrt(Mr)
 
-  const double prefactor = 1.0 + eps * std::cos(k * x);
-  return prefactor * norm * std::exp(-0.5 * Mr * v * v);
+  // TODO: For two-stream instability on higher dimensions
+  //       in which direction is the perturbation? just x_1 or more
+  //       same question on f0_ion
+  const double prefactor = 1.0 + eps * std::cos(k * x[0]);
+
+  double v2 = 0;
+  for (size_t i; i < V_DIM; ++i)
+    v2 += v[i] * v[i];
+
+  return prefactor * norm * std::exp(-0.5 * Mr * v2);
 }
 
 // wrapper for eval_point() { VectorTools::point_values() }
+// TO-UPDATE for dim template =================
 inline std::vector<double> eval(std::vector<double> &X,
                                 const GridStructure<1> &grid,
                                 const Vector<double> &solution) noexcept {
