@@ -1,34 +1,40 @@
 --
--- DIMENSION not changable here! you need to change it on `nufi/parameters.h` and re-build binary
+-- IF YOU CHANGE X or V DIMS CHANGE THEM ON `nufi/parameters.h` AND THEN RE-BUILD
 --
-local DIMENSION = 1
+local X_DIM              = 1
+local V_DIM              = 1
 
-local X_DOMAIN_LEFT = 0.0
-local X_DOMAIN_RIGHT = 4 * math.pi
+local X_DOMAIN_LEFT      = { 0.0, 0.0, 0.0 }
+local X_DOMAIN_RIGHT     = { 4 * math.pi, 4 * math.pi, 4 * math.pi }
 
-local V_DOMAIN_LEFT = -10.0
-local V_DOMAIN_RIGHT = 10.0
+local V_DOMAIN_LEFT      = { -10.0, -10.0, -10.0 }
+local V_DOMAIN_RIGHT     = { 10.0, 10.0, 10.0 }
 
-local NV = 512
+local NV                 = { 512, 512, 512 }
+
+local LX                 =
+{ math.abs(X_DOMAIN_RIGHT[1] - X_DOMAIN_LEFT[1]),
+  math.abs(X_DOMAIN_RIGHT[2] - X_DOMAIN_LEFT[2]),
+  math.abs(X_DOMAIN_RIGHT[3] - X_DOMAIN_LEFT[3]) }
 
 -- f0_TYPE:
 -- 0 -> twos-stream
 -- 1 -> landau-damping
 -- 2 -> maxwellian
 -- 3 -> bump-on-tail
-local f0_TYPE = 0
+local f0_TYPE            = 0
 
 -- Ion options
-local IONS_ENABLED = false
-local MASS_RATIO = 1000
-local ION_EPS = 0.01
-local ION_V_DOMAIN_LEFT = -0.4
+local IONS_ENABLED       = false
+local MASS_RATIO         = 1000
+local ION_EPS            = 0.01
+local ION_V_DOMAIN_LEFT  = -0.4
 local ION_V_DOMAIN_RIGHT = 0.4
-local NV_ION = 128
+local NV_ION             = { 128, 128, 128 }
 
 
 -- deal.ii options
-local GLOBAL_REFINEMENT = 8
+local GLOBAL_REFINEMENT = 5
 local FE_DEGREE = 3
 local CONVERGENCE_ITERATIONS = 5000
 local CONVERGENCE_LIMIT = 1e-7
@@ -52,22 +58,22 @@ local TMAX = 100
 -- Plotting options
 local PLOT_FREQUENCY = 160
 local SAVE_INT_E_ALWAYS = true
-local LX = math.abs(X_DOMAIN_RIGHT - X_DOMAIN_LEFT)
-local PLOT_NX = 512
+local PLOT_NX = { 512, 512, 512 }
 
 parameters = {
-  DIMENSION = DIMENSION,
+  X_DIM = X_DIM,
+  V_DIM = V_DIM,
 
   X_DOMAIN_LEFT = X_DOMAIN_LEFT,
   X_DOMAIN_RIGHT = X_DOMAIN_RIGHT,
   LX = LX,
-  LX_INV = 1.0 / LX,
+  LX_INV = { 1.0 / LX[1], 1.0 / LX[2], 1.0 / LX[3] },
 
   V_DOMAIN_LEFT = V_DOMAIN_LEFT,
   V_DOMAIN_RIGHT = V_DOMAIN_RIGHT,
 
   NV = NV,
-  DV = math.abs(V_DOMAIN_RIGHT - V_DOMAIN_LEFT) / NV,
+  DV = math.abs(V_DOMAIN_RIGHT[1] - V_DOMAIN_LEFT[1]) / NV,
 
   f0_TYPE = f0_TYPE,
 

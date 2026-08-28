@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <variant>
+#include <vector>
 
 extern "C" {
 #include <lauxlib.h>
@@ -51,6 +52,44 @@ public:
     lua_pop(L, 1);
     std::cout << "[LuaConfig] " << key << " = " << value << "\n";
     return value;
+  }
+
+  template <typename T>
+  std::vector<T> getArray(const std::string &key, size_t count) const {
+    lua_getfield(L, -1, key.c_str());
+    if (lua_isnil(L, -1)) {
+      lua_pop(L, 1);
+      throw std::runtime_error("Missing key: " + key);
+    }
+    if (!lua_istable(L, -1)) {
+      lua_pop(L, 1);
+      throw std::runtime_error("Key '" + key + "' is not a table");
+    }
+
+    const size_t available = lua_rawlen(L, -1);
+    if (available < count) {
+      lua_pop(L, 1);
+      throw std::runtime_error(
+          "Key '" + key + "' has " + std::to_string(available) +
+          " entries, need at least " + std::to_string(count));
+    }
+
+    std::vector<T> values;
+    values.reserve(count);
+    for (size_t i = 1; i <= count; ++i) {
+      lua_rawgeti(L, -1, static_cast<int>(i));
+      values.push_back(extract<T>(key));
+      lua_pop(L, 1);
+    }
+
+    lua_pop(L, 1); // pop the table itself
+
+    std::cout << "[LuaConfig] " << key << " = [";
+    for (size_t i = 0; i < values.size(); ++i)
+      std::cout << values[i] << (i + 1 < values.size() ? ", " : "");
+    std::cout << "]\n";
+
+    return values;
   }
 
 private:
