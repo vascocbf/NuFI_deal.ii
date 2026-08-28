@@ -183,7 +183,7 @@ inline double f0_ion(const array<double, X_DIM> &x,
 // TODO: I will probably need a way to keep track of the size of my solution on
 //       each dimension. or at least call it from grid.dof_handler
 template <size_t X_DIM>
-inline std::vector<double>
+inline std::vector<array<double, X_DIM>>
 eval(const std::vector<array<double, X_DIM>> &X,
      const GridStructure<X_DIM> &grid,
      // TODO: type for vector or solutions might be wrong
@@ -213,21 +213,23 @@ integral_space_vector(const GridStructure<X_DIM> &grid,
 
   const auto X = make_x_eval<X_DIM>(Nx);
 
-  const std::vector<double> tmp = eval<X_DIM>(X, grid, solution);
+  const std::vector<array<double, X_DIM>> tmp = eval<X_DIM>(X, grid, solution);
 
-  array<double, X_DIM> dx = {};
-  double volume_element = 1.;
+  double volume_element = 1.0;
 
   for (size_t d = 0; d < X_DIM; ++d) {
-    dx[d] =
-        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) / Nx[d];
-    volume_element *= dx[d];
+    const double dx =
+        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
+        static_cast<double>(Nx[d]);
+    volume_element *= dx;
   }
-
   double integral = 0.0;
-
-  for (size_t i = 0; i < tmp.size(); ++i)
-    integral += tmp[i];
+  for (const auto &E : tmp) {
+    double magnitude_squared = 0.0;
+    for (size_t d = 0; d < X_DIM; ++d)
+      magnitude_squared += E[d] * E[d];
+    integral += std::sqrt(magnitude_squared);
+  }
 
   return integral * volume_element;
 }
@@ -238,22 +240,21 @@ inline double integral_space_vector_squared(
     const array<size_t, X_DIM> Nx = Parameters::PLOT_NX) {
 
   const auto X = make_x_eval<X_DIM>(Nx);
+  const std::vector<array<double, X_DIM>> tmp = eval<X_DIM>(X, grid, solution);
 
-  const std::vector<double> tmp = eval<X_DIM>(X, grid, solution);
-
-  array<double, X_DIM> dx = {};
-  double volume_element = 1.;
-
+  double volume_element = 1.0;
   for (size_t d = 0; d < X_DIM; ++d) {
-    dx[d] =
-        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) / Nx[d];
-    volume_element *= dx[d];
+    const double dx =
+        (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
+        static_cast<double>(Nx[d]);
+    volume_element *= dx;
   }
 
   double integral = 0.0;
-
-  for (size_t i = 0; i < tmp.size(); ++i)
-    integral += tmp[i] * tmp[i];
+  for (const auto &E : tmp) {
+    for (size_t d = 0; d < X_DIM; ++d)
+      integral += E[d] * E[d];
+  }
 
   return integral * volume_element;
 }

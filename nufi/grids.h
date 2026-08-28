@@ -3,6 +3,8 @@
 
 #include "nufi/cells.h"
 
+#include <array>
+#include <cstddef>
 #include <deal.II/base/exceptions.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -22,28 +24,29 @@
 #include <vector>
 
 using namespace dealii;
+using std::array;
 
-template <int dim> class PoissonProblem;
+template <int X_DIM> class PoissonProblem;
 
-template <int dim> struct GridStructure {
-  std::unique_ptr<Triangulation<dim>> triangulation;
-  std::unique_ptr<DoFHandler<dim>> dof_handler;
-  std::unique_ptr<MappingQ<dim>> mapping;
-  std::unique_ptr<FE_Q<dim>> fe;
+template <int X_DIM> struct GridStructure {
+  std::unique_ptr<Triangulation<X_DIM>> triangulation;
+  std::unique_ptr<DoFHandler<X_DIM>> dof_handler;
+  std::unique_ptr<MappingQ<X_DIM>> mapping;
+  std::unique_ptr<FE_Q<X_DIM>> fe;
 
-  std::unique_ptr<CellLocator<dim>> locator;
+  std::unique_ptr<CellLocator<X_DIM>> locator;
 
   unsigned int grid_version = 0;
 
-#TODO : update to be templatable
-  std::vector<double>
+  // TODO : update to be templatable
+  std::vector<array<double, X_DIM>>
   eval_vector_grad(const Vector<double> &solution,
-                   const std::vector<Point<dim>> &points) const {
+                   const std::vector<Point<X_DIM>> &points) const {
 
     const unsigned int n_points = points.size();
-    std::vector<double> values(n_points);
+    std::vector<array<double, X_DIM>> values(n_points);
 
-    std::vector<CellLocation<dim>> locations(n_points);
+    std::vector<CellLocation<X_DIM>> locations(n_points);
 
 #pragma omp parallel for if (!omp_in_parallel())
     for (unsigned int p = 0; p < n_points; ++p)
@@ -53,7 +56,7 @@ template <int dim> struct GridStructure {
     for (unsigned int p = 0; p < n_points; ++p)
       cell_to_indices[locations[p].cell->active_cell_index()].push_back(p);
 
-    std::vector<typename DoFHandler<dim>::active_cell_iterator> cells;
+    std::vector<typename DoFHandler<X_DIM>::active_cell_iterator> cells;
     std::vector<std::vector<unsigned int>> groups;
     cells.reserve(cell_to_indices.size());
     groups.reserve(cell_to_indices.size());
@@ -66,62 +69,64 @@ template <int dim> struct GridStructure {
 #pragma omp parallel if (!omp_in_parallel())
     {
       std::vector<double> local_solution_buffer(fe->n_dofs_per_cell());
-      FEPointEvaluation<dim, dim> evaluator(*mapping, *fe, update_gradients);
+      FEPointEvaluation<1, X_DIM> evaluator(*mapping, *fe, update_gradients);
 
 #pragma omp for
       for (long c = 0; c < static_cast<long>(cells.size()); ++c) {
         const auto &cell = cells[c];
         const auto &idxs = groups[c];
 
-        std::vector<Point<dim>> unit_points(idxs.size());
+        std::vector<Point<X_DIM>> unit_points(idxs.size());
         for (size_t k = 0; k < idxs.size(); ++k)
           unit_points[k] = locations[idxs[k]].reference_point;
 
         cell->get_dof_values(solution, local_solution_buffer.begin(),
                              local_solution_buffer.end());
 
-        evaluator.reinit(cell, ArrayView<const Point<dim>>(unit_points));
+        evaluator.reinit(cell, ArrayView<const Point<X_DIM>>(unit_points));
         evaluator.evaluate(local_solution_buffer, EvaluationFlags::gradients);
 
-        for (size_t k = 0; k < idxs.size(); ++k)
-          // TO-UPDATE for dim template =================
-          values[idxs[k]] = evaluator.get_gradient(k)[0];
+        for (size_t k = 0; k < idxs.size(); ++k) {
+          for (size_t d = 0; d < X_DIM; ++d)
+            values[idxs[k]][d] = evaluator.get_gradient(k)[d];
+        }
       }
     }
     return values;
   }
 };
 
-template <int dim>
-GridStructure<dim> make_grid_snapshot(PoissonProblem<dim> &poisson) {
-  GridStructure<dim> grid;
+template <int X_DIM>
+GridStructure<X_DIM> make_grid_snapshot(PoissonProblem<X_DIM> &poisson) {
+  GridStructure<X_DIM> grid;
 
   grid.grid_version = 0;
 
-  grid.triangulation = std::make_unique<Triangulation<dim>>();
+  grid.triangulation = std::make_unique<Triangulation<X_DIM>>();
   grid.triangulation->copy_triangulation(poisson.get_triangulation());
 
-  grid.fe = std::make_unique<FE_Q<dim>>(poisson.get_fe());
+  grid.fe = std::make_unique<FE_Q<X_DIM>>(poisson.get_fe());
 
-  grid.dof_handler = std::make_unique<DoFHandler<dim>>(*grid.triangulation);
+  grid.dof_handler = std::make_unique<DoFHandler<X_DIM>>(*grid.triangulation);
   grid.dof_handler->distribute_dofs(*grid.fe);
 
-  grid.mapping = std::make_unique<MappingQ<dim>>(poisson.get_mapping());
+  grid.mapping = std::make_unique<MappingQ<X_DIM>>(poisson.get_mapping());
 
-  grid.locator = std::make_unique<CellLocator<dim>>();
+  grid.locator = std::make_unique<CellLocator<X_DIM>>();
   grid.locator->rebuild(*grid.dof_handler, *grid.triangulation);
 
   return grid;
 }
 
-template <int dim> struct SolutionSnapshot {
+template <int X_DIM> struct SolutionSnapshot {
   unsigned int grid_version;
   Vector<double> solution;
 };
 
-template <int dim>
-inline void update_grid_versions(std::vector<GridStructure<dim>> &grid_versions,
-                                 PoissonProblem<dim> &poisson) {
+template <int X_DIM>
+inline void
+update_grid_versions(std::vector<GridStructure<X_DIM>> &grid_versions,
+                     PoissonProblem<X_DIM> &poisson) {
   auto grid = make_grid_snapshot(poisson);
 
   if (!grid_versions.empty())
@@ -134,13 +139,13 @@ inline void update_grid_versions(std::vector<GridStructure<dim>> &grid_versions,
             << poisson.get_solution().size() << "\n";
 }
 
-template <int dim>
+template <int X_DIM>
 inline void
-update_solution_history(std::vector<SolutionSnapshot<dim>> &solution_history,
-                        PoissonProblem<dim> &poisson,
+update_solution_history(std::vector<SolutionSnapshot<X_DIM>> &solution_history,
+                        PoissonProblem<X_DIM> &poisson,
                         unsigned int current_grid_version) {
 
-  SolutionSnapshot<dim> snapshot;
+  SolutionSnapshot<X_DIM> snapshot;
 
   snapshot.grid_version = current_grid_version;
 

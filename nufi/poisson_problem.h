@@ -222,40 +222,6 @@ PoissonProblem<X_DIM>::sample_electric_potential(double x_min, double x_max,
   return values;
 }
 
-// TODO: update for dim templating
-template <int X_DIM>
-std::vector<double> eval_point_grad(const Mapping<X_DIM> &mapping,
-                                    const DoFHandler<X_DIM> &dof_handler,
-                                    const Vector<double> &solution,
-                                    const Point<X_DIM> &point) {
-  Tensor Ex =
-      VectorTools::point_gradient(mapping, dof_handler, solution, point);
-  return Ex[0];
-}
-
-template <int X_DIM>
-std::vector<double> eval_vector_grad(const Mapping<X_DIM> &mapping,
-                                     const DoFHandler<X_DIM> &dof_handler,
-                                     const Vector<double> &solution,
-                                     const std::vector<Point<X_DIM>> &points) {
-  size_t p_size = points.size();
-
-  std::vector<double> Ex(p_size);
-  for (size_t i = 0; i < p_size; ++i)
-    Ex[i] = eval_point_grad(mapping, dof_handler, solution, points[i]);
-
-  return Ex;
-}
-
-template <int X_DIM>
-double eval_point_value(const Mapping<X_DIM> &mapping,
-                        const DoFHandler<X_DIM> &dof_handler,
-                        const Vector<double> &solution,
-                        const Point<X_DIM> &point) {
-
-  return VectorTools::point_value<X_DIM>(mapping, dof_handler, solution, point);
-}
-
 template <int X_DIM>
 void PoissonProblem<X_DIM>::save_grid_to_file(std::string &filename) const {
   GridOut grid_out;
