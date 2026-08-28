@@ -66,14 +66,14 @@ using namespace dealii;
 
 // =-=-=-=-= Poisson Solver =-=-=-=-=
 
-template <int dim> class PoissonProblem {
+template <int X_DIM> class PoissonProblem {
 public:
   PoissonProblem(unsigned int degree);
 
   void initialize();
 
-  // TO-UPDATE for dim template =================
-  double solve_step(size_t it, std::vector<GridStructure<1>> &grid_versions,
+  // TO-UPDATE for X_DIM template =================
+  double solve_step(size_t it, std::vector<GridStructure<X_DIM>> &grid_versions,
                     bool refining = false);
   void coarse_and_refine_grid(size_t it);
   void setup_constraints(AffineConstraints<double> &constraints);
@@ -82,17 +82,19 @@ public:
   unsigned int get_rhs_size();
   unsigned int get_dof_size();
   void set_rhs_function(
-      std::function<std::vector<double>(const std::vector<Point<dim>> &)> f);
+      std::function<std::vector<double>(const std::vector<Point<X_DIM>> &)> f);
 
   const Vector<double> &get_solution() const { return solution; }
-  const MappingQ<dim> &get_mapping() const { return mapping; }
-  const DoFHandler<dim> &get_dof_handler() const { return dof_handler; }
-  const Triangulation<dim> &get_triangulation() const { return triangulation; }
-  const FE_Q<dim> &get_fe() const { return fe; }
+  const MappingQ<X_DIM> &get_mapping() const { return mapping; }
+  const DoFHandler<X_DIM> &get_dof_handler() const { return dof_handler; }
+  const Triangulation<X_DIM> &get_triangulation() const {
+    return triangulation;
+  }
+  const FE_Q<X_DIM> &get_fe() const { return fe; }
   const AffineConstraints<double> &get_constraints() const {
     return constraints;
   }
-  const CellLocator<dim> &get_locator() const { return cell_locator; }
+  const CellLocator<X_DIM> &get_locator() const { return cell_locator; }
   double get_error_estimate() const { return error_estimate; }
 
   std::vector<double> sample_electric_field(double x_min, double x_max,
@@ -102,7 +104,7 @@ public:
 
   std::vector<double>
   eval_vector_grad(const Vector<double> &solution,
-                   const std::vector<Point<dim>> &points) const;
+                   const std::vector<Point<X_DIM>> &points) const;
 
   void save_grid_to_file(std::string &filename) const;
 
@@ -113,15 +115,15 @@ private:
   void solve(size_t it);
   void estimate_error();
 
-  std::function<std::vector<double>(const std::vector<Point<dim>> &)>
+  std::function<std::vector<double>(const std::vector<Point<X_DIM>> &)>
       rhs_function;
 
-  MappingQ<dim> mapping;
-  FE_Q<dim> fe;
+  MappingQ<X_DIM> mapping;
+  FE_Q<X_DIM> fe;
   AffineConstraints<double> constraints;
-  Triangulation<dim> triangulation;
-  DoFHandler<dim> dof_handler;
-  CellLocator<dim> cell_locator;
+  Triangulation<X_DIM> triangulation;
+  DoFHandler<X_DIM> dof_handler;
+  CellLocator<X_DIM> cell_locator;
   Vector<double> solution; // phi
   SparsityPattern sparsity_pattern;
   SparseMatrix<double> system_matrix;
@@ -135,51 +137,53 @@ private:
 // Utilities
 //====//====//
 
-template <int dim> unsigned int PoissonProblem<dim>::get_rhs_size() {
+template <int X_DIM> unsigned int PoissonProblem<X_DIM>::get_rhs_size() {
 
-  QGauss<dim> quadrature_formula(fe.degree + 1);
+  QGauss<X_DIM> quadrature_formula(fe.degree + 1);
   return quadrature_formula.size();
 }
 
-template <int dim> unsigned int PoissonProblem<dim>::get_dof_size() {
+template <int X_DIM> unsigned int PoissonProblem<X_DIM>::get_dof_size() {
   return dof_handler.n_dofs();
 }
 
-template <int dim>
-void PoissonProblem<dim>::set_rhs_function(
-    std::function<std::vector<double>(const std::vector<Point<dim>> &)> f) {
+template <int X_DIM>
+void PoissonProblem<X_DIM>::set_rhs_function(
+    std::function<std::vector<double>(const std::vector<Point<X_DIM>> &)> f) {
   rhs_function = std::move(f);
 }
 
-template <int dim>
-PoissonProblem<dim>::PoissonProblem(unsigned int degree)
+template <int X_DIM>
+PoissonProblem<X_DIM>::PoissonProblem(unsigned int degree)
     : mapping(degree), fe(degree), triangulation(), dof_handler(triangulation) {
 }
 
 // Uses FEPointEvaluation
-template <int dim>
+//
+// TODO: update for dim templating
+template <int X_DIM>
 std::vector<double>
-PoissonProblem<dim>::sample_electric_field(double x_min, double x_max,
-                                           unsigned int Nx) {
+PoissonProblem<X_DIM>::sample_electric_field(double x_min, double x_max,
+                                             unsigned int Nx) {
   std::vector<double> E_values(Nx);
 
   const double dx = (x_max - x_min) / (Nx - 1);
 
   for (unsigned int i = 0; i < Nx; ++i) {
     const double x = x_min + i * dx;
-    const Point<dim> point(x);
+    const Point<X_DIM> point(x);
 
     const auto cell_point_pair =
         GridTools::find_active_cell_around_point(mapping, dof_handler, point);
 
     const auto cell = cell_point_pair.first;
-    const Point<dim> &unit_point = cell_point_pair.second;
+    const Point<X_DIM> &unit_point = cell_point_pair.second;
 
-    std::vector<Point<dim>> points(1, unit_point);
-    ArrayView<const Point<dim>> point_view(points);
+    std::vector<Point<X_DIM>> points(1, unit_point);
+    ArrayView<const Point<X_DIM>> point_view(points);
 
-    FEPointEvaluation<1, dim> evaluator(mapping, dof_handler.get_fe(),
-                                        update_gradients);
+    FEPointEvaluation<1, X_DIM> evaluator(mapping, dof_handler.get_fe(),
+                                          update_gradients);
 
     evaluator.reinit(cell, point_view);
 
@@ -188,7 +192,7 @@ PoissonProblem<dim>::sample_electric_field(double x_min, double x_max,
 
     evaluator.evaluate(local_dofs, EvaluationFlags::gradients);
 
-    const Tensor<1, dim> grad_phi = evaluator.get_gradient(0);
+    const Tensor<1, X_DIM> grad_phi = evaluator.get_gradient(0);
 
     E_values[i] = -grad_phi[0];
   }
@@ -196,12 +200,13 @@ PoissonProblem<dim>::sample_electric_field(double x_min, double x_max,
   return E_values;
 }
 
-template <int dim>
+// TODO: update for dim templating.
+template <int X_DIM>
 std::vector<double>
-PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
-                                               unsigned int Nx) {
+PoissonProblem<X_DIM>::sample_electric_potential(double x_min, double x_max,
+                                                 unsigned int Nx) {
   std::vector<double> values(Nx);
-  std::vector<Point<dim>> eval_points(Nx);
+  std::vector<Point<X_DIM>> eval_points(Nx);
 
   double Lx = x_max - x_min;
   double dx = Lx / Nx;
@@ -209,28 +214,30 @@ PoissonProblem<dim>::sample_electric_potential(double x_min, double x_max,
   for (unsigned int i = 0; i < Nx; ++i)
     eval_points[i] = Point<1, double>(x_min + i * dx);
 
-  Utilities::MPI::RemotePointEvaluation<dim, dim> cache;
+  Utilities::MPI::RemotePointEvaluation<X_DIM, X_DIM> cache;
   cache.reinit(eval_points, triangulation, mapping);
 
-  values = VectorTools::point_values<dim>(cache, dof_handler, solution);
+  values = VectorTools::point_values<X_DIM>(cache, dof_handler, solution);
 
   return values;
 }
 
-template <int dim>
-std::vector<double>
-eval_point_grad(const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler,
-                const Vector<double> &solution, const Point<dim> &point) {
+// TODO: update for dim templating
+template <int X_DIM>
+std::vector<double> eval_point_grad(const Mapping<X_DIM> &mapping,
+                                    const DoFHandler<X_DIM> &dof_handler,
+                                    const Vector<double> &solution,
+                                    const Point<X_DIM> &point) {
   Tensor Ex =
       VectorTools::point_gradient(mapping, dof_handler, solution, point);
   return Ex[0];
 }
 
-template <int dim>
-std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
-                                     const DoFHandler<dim> &dof_handler,
+template <int X_DIM>
+std::vector<double> eval_vector_grad(const Mapping<X_DIM> &mapping,
+                                     const DoFHandler<X_DIM> &dof_handler,
                                      const Vector<double> &solution,
-                                     const std::vector<Point<dim>> &points) {
+                                     const std::vector<Point<X_DIM>> &points) {
   size_t p_size = points.size();
 
   std::vector<double> Ex(p_size);
@@ -240,24 +247,24 @@ std::vector<double> eval_vector_grad(const Mapping<dim> &mapping,
   return Ex;
 }
 
-template <int dim>
-double eval_point_value(const Mapping<dim> &mapping,
-                        const DoFHandler<dim> &dof_handler,
+template <int X_DIM>
+double eval_point_value(const Mapping<X_DIM> &mapping,
+                        const DoFHandler<X_DIM> &dof_handler,
                         const Vector<double> &solution,
-                        const Point<dim> &point) {
+                        const Point<X_DIM> &point) {
 
-  return VectorTools::point_value<dim>(mapping, dof_handler, solution, point);
+  return VectorTools::point_value<X_DIM>(mapping, dof_handler, solution, point);
 }
 
-template <int dim>
-void PoissonProblem<dim>::save_grid_to_file(std::string &filename) const {
+template <int X_DIM>
+void PoissonProblem<X_DIM>::save_grid_to_file(std::string &filename) const {
   GridOut grid_out;
 
-  if (dim >= 2) {
+  if (X_DIM >= 2) {
     filename += ".svg";
     std::ofstream out(filename);
     grid_out.write_svg(triangulation, out);
-  } else if (dim == 1) {
+  } else if (X_DIM == 1) {
     filename += ".vtu";
     std::ofstream out(filename);
     grid_out.write_vtu(triangulation, out);
@@ -270,30 +277,39 @@ void PoissonProblem<dim>::save_grid_to_file(std::string &filename) const {
 // dealii Poisson
 //======//======//
 
-// TO-UPDATE for dim template =================
-template <int dim> void PoissonProblem<dim>::create_mesh() {
+template <int X_DIM> void PoissonProblem<X_DIM>::create_mesh() {
 
-  GridGenerator::hyper_cube(triangulation, Parameters::X_DOMAIN_LEFT,
-                            Parameters::X_DOMAIN_RIGHT);
+  Point<X_DIM> lower_left, upper_right;
+  for (unsigned int d = 0; d < X_DIM; ++d) {
+    lower_left[d] = Parameters::X_DOMAIN_LEFT[d];
+    upper_right[d] = Parameters::X_DOMAIN_RIGHT[d];
+  }
+
+  GridGenerator::hyper_rectangle(triangulation, lower_left, upper_right,
+                                 /*colorize=*/true);
 
   std::vector<
-      GridTools::PeriodicFacePair<typename Triangulation<dim>::cell_iterator>>
+      GridTools::PeriodicFacePair<typename Triangulation<X_DIM>::cell_iterator>>
       periodic_faces;
 
-  GridTools::collect_periodic_faces(triangulation, 0, 1, // boundary IDs
-                                    0, periodic_faces);
+  for (unsigned int d = 0; d < X_DIM; ++d)
+    GridTools::collect_periodic_faces(triangulation, 2 * d, 2 * d + 1, d,
+                                      periodic_faces);
 
   triangulation.add_periodicity(periodic_faces);
 
   triangulation.refine_global(Parameters::GLOBAL_REFINEMENT);
 }
 
-template <int dim>
-void PoissonProblem<dim>::setup_constraints(
+template <int X_DIM>
+void PoissonProblem<X_DIM>::setup_constraints(
     AffineConstraints<double> &constraints) {
 
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-  DoFTools::make_periodicity_constraints(dof_handler, 0, 1, 0, constraints);
+
+  for (unsigned int d = 0; d < X_DIM; ++d)
+    DoFTools::make_periodicity_constraints(dof_handler, 2 * d, 2 * d + 1, d,
+                                           constraints);
 
   const auto support_points =
       DoFTools::map_dofs_to_support_points(mapping, dof_handler);
@@ -319,7 +335,7 @@ void PoissonProblem<dim>::setup_constraints(
   constraints.set_inhomogeneity(gauge_dof, 0.0);
 }
 
-template <int dim> void PoissonProblem<dim>::setup_system() {
+template <int X_DIM> void PoissonProblem<X_DIM>::setup_system() {
 
   dof_handler.distribute_dofs(fe);
 
@@ -342,17 +358,17 @@ template <int dim> void PoissonProblem<dim>::setup_system() {
   cell_locator.rebuild(dof_handler, triangulation);
 }
 
-template <int dim> void PoissonProblem<dim>::assemble_system() {
+template <int X_DIM> void PoissonProblem<X_DIM>::assemble_system() {
 
   Assert(system_matrix.m() == dof_handler.n_dofs(),
          ExcMessage("Matrix not initialized correctly"));
   system_matrix = 0;
   system_rhs = 0;
 
-  const QGauss<dim> quadrature_formula(fe.degree + 1);
-  FEValues<dim> fe_values(fe, quadrature_formula,
-                          update_values | update_gradients |
-                              update_quadrature_points | update_JxW_values);
+  const QGauss<X_DIM> quadrature_formula(fe.degree + 1);
+  FEValues<X_DIM> fe_values(fe, quadrature_formula,
+                            update_values | update_gradients |
+                                update_quadrature_points | update_JxW_values);
 
   const unsigned int dofs_per_cell = fe.n_dofs_per_cell();
 
@@ -363,7 +379,7 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
 
   // Eval rhs_function only once for all quadrature points
   const unsigned int n_q_points = quadrature_formula.size();
-  std::vector<Point<dim>> all_q_points;
+  std::vector<Point<X_DIM>> all_q_points;
   all_q_points.reserve(triangulation.n_active_cells() * n_q_points);
 
   for (const auto &cell : dof_handler.active_cell_iterators()) {
@@ -411,13 +427,14 @@ template <int dim> void PoissonProblem<dim>::assemble_system() {
   }
 }
 
-template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
+template <int X_DIM>
+void PoissonProblem<X_DIM>::coarse_and_refine_grid(size_t it) {
   std::cout << "Refinement Started..." << "\n";
 
   Vector<float> error_per_cell(triangulation.n_active_cells());
-  KellyErrorEstimator<dim>::estimate(
-      dof_handler, QGauss<dim - 1>(fe.degree + 1),
-      std::map<types::boundary_id, const Function<dim> *>(), solution,
+  KellyErrorEstimator<X_DIM>::estimate(
+      dof_handler, QGauss<X_DIM - 1>(fe.degree + 1),
+      std::map<types::boundary_id, const Function<X_DIM> *>(), solution,
       error_per_cell);
 
   // GridRefinement::refine_and_coarsen_fixed_number(triangulation,
@@ -442,18 +459,18 @@ template <int dim> void PoissonProblem<dim>::coarse_and_refine_grid(size_t it) {
   save_grid_to_file(grid_file_name);
 }
 
-template <int dim> void PoissonProblem<dim>::estimate_error() {
+template <int X_DIM> void PoissonProblem<X_DIM>::estimate_error() {
   Vector<float> error_per_cell(triangulation.n_active_cells());
 
-  KellyErrorEstimator<dim>::estimate(
-      dof_handler, QGauss<dim - 1>(fe.degree + 1),
-      std::map<types::boundary_id, const Function<dim> *>(), solution,
+  KellyErrorEstimator<X_DIM>::estimate(
+      dof_handler, QGauss<X_DIM - 1>(fe.degree + 1),
+      std::map<types::boundary_id, const Function<X_DIM> *>(), solution,
       error_per_cell);
 
   error_estimate = error_per_cell.l2_norm();
 }
 
-template <int dim> void PoissonProblem<dim>::solve(size_t it) {
+template <int X_DIM> void PoissonProblem<X_DIM>::solve(size_t it) {
 
   std::cout << "Calling PoissonProblem::solve for time-step " << it << "\n";
 
@@ -469,14 +486,15 @@ template <int dim> void PoissonProblem<dim>::solve(size_t it) {
   constraints.distribute(solution);
 }
 
-template <int dim> void PoissonProblem<dim>::initialize() {
+template <int X_DIM> void PoissonProblem<X_DIM>::initialize() {
   create_mesh();  // build grid
   setup_system(); // distribute DoFs and matrices
 }
 
-template <int dim>
-double PoissonProblem<dim>::solve_step(
-    size_t it, std::vector<GridStructure<1>> &grid_versions, bool refining) {
+template <int X_DIM>
+double PoissonProblem<X_DIM>::solve_step(
+    size_t it, std::vector<GridStructure<X_DIM>> &grid_versions,
+    bool refining) {
   double refining_time = 0.0;
   if (refining) {
     stopwatch<double> refining_timer;
@@ -493,7 +511,7 @@ double PoissonProblem<dim>::solve_step(
 }
 
 // NuFI doesnt use this, kept only for testing PoissonProblem
-template <int dim> void PoissonProblem<dim>::run() {
+template <int X_DIM> void PoissonProblem<X_DIM>::run() {
   create_mesh();
   setup_system();
   assemble_system();
