@@ -51,10 +51,10 @@ template <size_t X_DIM>
 inline void reset_x_eval(std::vector<array<double, X_DIM>> &x_vals,
                          array<size_t, X_DIM> &Nx) {
 
-  array<double, X_DIM> dx = {};
+  array<double, X_DIM> dv = {};
 
   for (size_t d = 0; d < X_DIM; ++d)
-    dx[d] = (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
+    dv[d] = (Parameters::X_DOMAIN_RIGHT[d] - Parameters::X_DOMAIN_LEFT[d]) /
             static_cast<double>(Nx[d]);
 
   size_t n_points = 1;
@@ -73,7 +73,89 @@ inline void reset_x_eval(std::vector<array<double, X_DIM>> &x_vals,
       size_t j = index % Nx[d];
       index /= Nx[d];
       x[d] =
-          Parameters::X_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dx[d];
+          Parameters::X_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dv[d];
+    }
+    x_vals[i] = x;
+  }
+};
+
+template <size_t V_DIM>
+inline array<double, V_DIM> make_dv(const array<size_t, V_DIM> &Nv,
+                                    bool is_electron = true) {
+  array<double, V_DIM> dv = {};
+  for (size_t d = 0; d < V_DIM; ++d) {
+    const double v_min = is_electron ? Parameters::V_DOMAIN_LEFT[d]
+                                     : Parameters::ION_V_DOMAIN_LEFT;
+    const double v_max = is_electron ? Parameters::V_DOMAIN_RIGHT[d]
+                                     : Parameters::ION_V_DOMAIN_RIGHT;
+    dv[d] = (v_max - v_min) / static_cast<double>(Nv[d]);
+  }
+  return dv;
+}
+
+template <size_t V_DIM>
+inline std::vector<array<double, V_DIM>>
+make_v_eval(const array<size_t, V_DIM> &Nv, const bool is_electron = true) {
+
+  const array<double, V_DIM> dv = make_dv<V_DIM>(Nv, is_electron);
+
+  array<double, V_DIM> v_min = {};
+  for (size_t d = 0; d < V_DIM; ++d)
+    v_min[d] = is_electron ? Parameters::V_DOMAIN_LEFT[d]
+                           : Parameters::ION_V_DOMAIN_LEFT;
+
+  size_t n_points = 1;
+  for (size_t d = 0; d < V_DIM; ++d)
+    n_points *= Nv[d];
+
+  std::vector<array<double, V_DIM>> x_eval(n_points);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < n_points; ++i) {
+    size_t index = i;
+    array<double, V_DIM> x = {};
+
+    for (size_t d = 0; d < V_DIM; ++d) {
+      size_t j = index % Nv[d];
+      index /= Nv[d];
+      x[d] =
+          Parameters::V_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dv[d];
+    }
+    x_eval[i] = x;
+  }
+
+  return x_eval;
+}
+
+template <size_t V_DIM>
+inline void reset_v_eval(std::vector<array<double, V_DIM>> &x_vals,
+                         array<size_t, V_DIM> &Nv,
+                         const bool is_electron = true) {
+
+  const array<double, V_DIM> dv = make_dv<V_DIM>(Nv, is_electron);
+
+  array<double, V_DIM> v_min = {};
+  for (size_t d = 0; d < V_DIM; ++d)
+    v_min[d] = is_electron ? Parameters::V_DOMAIN_LEFT[d]
+                           : Parameters::ION_V_DOMAIN_LEFT;
+
+  size_t n_points = 1;
+  for (size_t d = 0; d < V_DIM; ++d)
+    n_points *= Nv[d];
+
+  if (x_vals.size() != n_points)
+    x_vals.resize(n_points);
+
+#pragma omp parallel for
+  for (size_t i = 0; i < n_points; ++i) {
+    size_t index = i;
+    array<double, V_DIM> x = {};
+
+    for (size_t d = 0; d < V_DIM; ++d) {
+      size_t j = index % Nv[d];
+      index /= Nv[d];
+      x[d] =
+          Parameters::V_DOMAIN_LEFT[d] + (static_cast<double>(j) + .5) * dv[d];
     }
     x_vals[i] = x;
   }

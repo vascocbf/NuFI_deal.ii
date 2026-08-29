@@ -69,7 +69,7 @@ inline double MASS_RATIO;
 inline double ION_EPS;
 inline double ION_V_DOMAIN_LEFT;
 inline double ION_V_DOMAIN_RIGHT;
-inline std::array<unsigned int, V_DIM> NV_ION;
+inline std::array<size_t, V_DIM> NV_ION;
 
 inline void load_lua_config(const std::string &luaFilePath) {
   LuaConfig config(luaFilePath, "parameters");
@@ -144,7 +144,7 @@ inline void load_lua_config(const std::string &luaFilePath) {
   {
     auto nv_ion = config.getArray<int>("NV_ION", V_DIM);
     for (unsigned int d = 0; d < V_DIM; ++d)
-      NV_ION[d] = static_cast<unsigned int>(nv_ion[d]);
+      NV_ION[d] = static_cast<size_t>(nv_ion[d]);
   }
 
   DT = config.get<double>("DT");
