@@ -1,21 +1,31 @@
 --
 -- IF YOU CHANGE X or V DIMS CHANGE THEM ON `nufi/parameters.h` AND THEN RE-BUILD
 --
-local X_DIM              = 1
-local V_DIM              = 1
+local X_DIM          = 3
+local V_DIM          = 3
 
-local X_DOMAIN_LEFT      = { 0.0, 0.0, 0.0 }
-local X_DOMAIN_RIGHT     = { 4 * math.pi, 4 * math.pi, 4 * math.pi }
+local X_DOMAIN_LEFT  = { 0.0, 0.0, 0.0 }
+local X_DOMAIN_RIGHT = { 4 * math.pi, 4 * math.pi, 4 * math.pi }
 
-local V_DOMAIN_LEFT      = { -10.0, -10.0, -10.0 }
-local V_DOMAIN_RIGHT     = { 10.0, 10.0, 10.0 }
+local V_DOMAIN_LEFT  = { -10.0, -10.0, -10.0 }
+local V_DOMAIN_RIGHT = { 10.0, 10.0, 10.0 }
+local NV_BY_VDIM     = {
+  [1] = { 512, 512, 512 },
+  [2] = { 64, 64, 64 },
+  [3] = { 8, 8, 8 },
+}
+local NV             = NV_BY_VDIM[V_DIM]
 
-local NV                 = { 512, 512, 512 }
 
 local LX                 =
 { math.abs(X_DOMAIN_RIGHT[1] - X_DOMAIN_LEFT[1]),
   math.abs(X_DOMAIN_RIGHT[2] - X_DOMAIN_LEFT[2]),
   math.abs(X_DOMAIN_RIGHT[3] - X_DOMAIN_LEFT[3]) }
+
+local DV                 =
+{ math.abs(V_DOMAIN_RIGHT[1] - V_DOMAIN_LEFT[1]) / NV[1],
+  math.abs(V_DOMAIN_RIGHT[2] - V_DOMAIN_LEFT[2]) / NV[2],
+  math.abs(V_DOMAIN_RIGHT[3] - V_DOMAIN_LEFT[3]) / NV[3] }
 
 -- f0_TYPE:
 -- 0 -> twos-stream
@@ -30,11 +40,16 @@ local MASS_RATIO         = 1000
 local ION_EPS            = 0.01
 local ION_V_DOMAIN_LEFT  = -0.4
 local ION_V_DOMAIN_RIGHT = 0.4
-local NV_ION             = { 128, 128, 128 }
+local NV_ION_BY_VDIM     = {
+  [1] = { 128, 128, 128 },
+  [2] = { 32, 32, 32 },
+  [3] = { 8, 8, 8 },
+}
+local NV_ION             = NV_ION_BY_VDIM[V_DIM]
 
 
 -- deal.ii options
-local GLOBAL_REFINEMENT = 5
+local GLOBAL_REFINEMENT = 3
 local FE_DEGREE = 3
 local CONVERGENCE_ITERATIONS = 5000
 local CONVERGENCE_LIMIT = 1e-7
@@ -58,7 +73,17 @@ local TMAX = 100
 -- Plotting options
 local PLOT_FREQUENCY = 160
 local SAVE_INT_E_ALWAYS = true
-local PLOT_NX = { 512, 512, 512 }
+local PLOT_NX_BY_XDIM = {
+  [1] = { 512, 512, 512 },
+  [2] = { 128, 128, 128 },
+  [3] = { 32, 32, 32 },
+}
+local PLOT_NX = PLOT_NX_BY_XDIM[X_DIM]
+
+local PLOT_DX =
+{ LX[1] / PLOT_NX[1],
+  LX[2] / PLOT_NX[2],
+  LX[3] / PLOT_NX[3] }
 
 parameters = {
   X_DIM = X_DIM,
@@ -73,7 +98,7 @@ parameters = {
   V_DOMAIN_RIGHT = V_DOMAIN_RIGHT,
 
   NV = NV,
-  DV = math.abs(V_DOMAIN_RIGHT[1] - V_DOMAIN_LEFT[1]) / NV,
+  DV = DV,
 
   f0_TYPE = f0_TYPE,
 
@@ -110,6 +135,6 @@ parameters = {
   PLOT_FREQUENCY = PLOT_FREQUENCY,
   SAVE_INT_E_ALWAYS = SAVE_INT_E_ALWAYS,
   PLOT_NX = PLOT_NX,
-  PLOT_DX = LX / PLOT_NX,
+  PLOT_DX = PLOT_DX,
   PLOT_DIR = "results/",
 }

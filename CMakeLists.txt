@@ -1,5 +1,6 @@
 add_compile_options(-fdiagnostics-color=always)
 add_compile_options(-Wno-array-bounds)
+add_compile_options(-Wno-stringop-overflow)
 cmake_minimum_required(VERSION 3.13.4)
 project(nufi_poisson)
 
