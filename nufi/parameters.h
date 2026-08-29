@@ -9,9 +9,9 @@
 
 #include "lua_config.h"
 
-namespace Parameters {
+using dealii::ExcMessage;
 
-inline constexpr unsigned int DIMENSION = 1;
+namespace Parameters {
 
 // IF YOU CHANGE X_DIM or V_DIM: change them here AND in parameters.lua,
 // then re-build. These must match at runtime (checked in load_lua_config).

@@ -38,7 +38,6 @@ template <int X_DIM> struct GridStructure {
 
   unsigned int grid_version = 0;
 
-  // TODO : update to be templatable
   std::vector<array<double, X_DIM>>
   eval_vector_grad(const Vector<double> &solution,
                    const std::vector<Point<X_DIM>> &points) const {

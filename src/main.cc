@@ -1,17 +1,25 @@
 #include "nufi/stopwatch.h"
+#include <array>
 #include <filesystem>
 #include <iostream>
+#include <nufi/fields.h>
 #include <nufi/nufi_solver.h>
 #include <nufi/parameters.h>
 #include <nufi/poisson_problem.h>
 #include <nufi/save_results.h>
 #include <omp.h>
 
-template <int dim> void run() {
+using std::array;
+
+template <size_t X_DIM, size_t V_DIM> void run() {
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);
 
-  PoissonProblem<dim> poisson(dim);
-  NuFISolver solver;
+  array<size_t, V_DIM> Nv{};
+  for (size_t d = 0; d < V_DIM; ++d)
+    Nv[d] = static_cast<size_t>(Parameters::NV[d]);
+
+  PoissonProblem<X_DIM> poisson(Parameters::FE_DEGREE);
+  NuFISolver<X_DIM, V_DIM> solver;
   using std::abs;
   using std::max;
 
@@ -23,8 +31,8 @@ template <int dim> void run() {
   std::vector<double> int_E_squared_times;
   int_E_squared_times.reserve(Nt);
 
-  std::vector<GridStructure<1>> grid_versions;
-  std::vector<SolutionSnapshot<1>> phi_history;
+  std::vector<GridStructure<X_DIM>> grid_versions;
+  std::vector<SolutionSnapshot<X_DIM>> phi_history;
 
   std::ofstream time_file(Parameters::PLOT_DIR + "simulation_time.dat");
 
@@ -64,11 +72,10 @@ template <int dim> void run() {
     double compute_start = timer.elapsed();
 
     // compute rho
-    poisson.set_rhs_function([&](const std::vector<Point<1>> &points) {
-      std::vector<double> x(points.size());
-      for (size_t i = 0; i < points.size(); ++i)
-        x[i] = points[i][0];
-      return solver.eval_rho(it, x, grid_versions, phi_history, Parameters::NV);
+    poisson.set_rhs_function([&](const std::vector<Point<X_DIM>> &points) {
+      std::vector<array<double, X_DIM>> X =
+          Point_vector_to_double_vector<X_DIM>(points);
+      return solver.eval_rho(it, X, grid_versions, phi_history, Nv);
     });
 
     if (it == 0 ||
@@ -91,9 +98,9 @@ template <int dim> void run() {
       // Save |E|^2; cheap because uses just calculated solution
       // (does not to the entire backward characteristics)
       const double int_E_sq_now =
-          0.5 * integral_space_vector_squared(
+          0.5 * integral_space_vector_squared<X_DIM>(
                     grid_versions[phi_history.back().grid_version],
-                    phi_history.back().solution, Parameters::PLOT_NX);
+                    phi_history.back().solution);
 
       int_E_squared.push_back(int_E_sq_now);
       int_E_squared_times.push_back(it * Parameters::DT);
@@ -108,9 +115,9 @@ template <int dim> void run() {
       double plot_start = timer.elapsed();
 
       std::cout << "Saving results...   ";
-      DiagnosticsSnapshot snap =
-          compute_diagnostics(solver, it, grid_versions, phi_history,
-                              Parameters::PLOT_NX, Parameters::NV);
+      DiagnosticsSnapshot<X_DIM, V_DIM> snap =
+          compute_diagnostics<X_DIM, V_DIM>(
+              solver, it, grid_versions, phi_history, Parameters::PLOT_NX, Nv);
 
       save_f(snap, Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".dat");
       save_rho(snap,
@@ -165,7 +172,7 @@ int main() {
     std::filesystem::copy_file(
         "parameters.lua", "results/parameters.lua",
         std::filesystem::copy_options::overwrite_existing);
-    run<1>(); // 1 = space_dim
+    run<Parameters::X_DIM, Parameters::V_DIM>();
 
   } catch (const std::exception &exc) {
     std::cerr << "\nException:\n" << exc.what() << "\n";

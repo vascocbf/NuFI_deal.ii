@@ -170,8 +170,9 @@ inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
 
   const double factor = Parameters::F0_FACTOR;
 
-  auto maxwell = [factor](array<double, V_DIM> &u,
-                          array<double, V_DIM> &v0 = {}, double v_th = 1) {
+  auto maxwell = [factor](const array<double, V_DIM> &u,
+                          const array<double, V_DIM> &v0 = {},
+                          const double v_th = 1) {
     double v2 = 0.0;
     for (std::size_t d = 0; d < V_DIM; ++d) {
       const double dv = u[d] - v0[d];
@@ -226,7 +227,7 @@ inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
     array<double, V_DIM> beam_velocity = {};
     beam_velocity[0] = beam_v;
 
-    const double beam_max = maxwell(v, beam_v, beam_v_th);
+    const double beam_max = maxwell(v, beam_velocity, beam_v_th);
     computed_max = maxwell(v);
 
     result = (1 - alpha) * computed_max + alpha * beam_max;
@@ -261,15 +262,10 @@ inline double f0_ion(const array<double, X_DIM> &x,
 }
 
 // wrapper for eval_point() { VectorTools::point_values() }
-
-// TODO: I will probably need a way to keep track of the size of my solution on
-//       each dimension. or at least call it from grid.dof_handler
 template <size_t X_DIM>
 inline std::vector<array<double, X_DIM>>
 eval(const std::vector<array<double, X_DIM>> &X,
-     const GridStructure<X_DIM> &grid,
-     // TODO: type for vector or solutions might be wrong
-     const Vector<double> &solution) {
+     const GridStructure<X_DIM> &grid, const Vector<double> &solution) {
 
   AssertThrow(grid.dof_handler->n_dofs() == solution.size(),
               ExcMessage("@ eval(...) grid's number of DoFs doesn't correspond "
@@ -283,8 +279,7 @@ eval(const std::vector<array<double, X_DIM>> &X,
       points[i][d] = X[i][d];
   }
 
-  // TODO: template eval_vector_grad
-  return grid.eval_vector_grad<X_DIM>(solution, points);
+  return grid.eval_vector_grad(solution, points);
 }
 
 template <size_t X_DIM>

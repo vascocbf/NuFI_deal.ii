@@ -46,7 +46,7 @@ inline std::array<size_t, DIM> unravel_index(size_t index,
 
 template <size_t X_DIM, size_t V_DIM>
 DiagnosticsSnapshot<X_DIM, V_DIM>
-compute_diagnostics(const NuFISolver &solver, unsigned int n,
+compute_diagnostics(const NuFISolver<X_DIM, V_DIM> &solver, unsigned int n,
                     std::vector<GridStructure<X_DIM>> &grid_struct,
                     std::vector<SolutionSnapshot<X_DIM>> &phi_history,
                     const std::array<size_t, X_DIM> &Nx_out,
@@ -77,13 +77,11 @@ compute_diagnostics(const NuFISolver &solver, unsigned int n,
       snap.v_eval[j][d] = Parameters::V_DOMAIN_LEFT[d] + (idx[d] + 0.5) * dv[d];
   }
 
-  // NOTE: solver.eval_f still expects scalar x/v (1x1v). This call site
-  // will need updating once NuFISolver is templated on X_DIM/V_DIM.
   snap.f.resize(n_x * n_v);
 #pragma omp parallel for
   for (size_t j = 0; j < n_v; ++j) {
-    std::vector<double> val = solver.eval_f<X_DIM, V_DIM>(
-        n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history);
+    std::vector<double> val =
+        solver.eval_f(n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history);
     std::copy(val.begin(), val.end(), snap.f.begin() + j * n_x);
   }
 
