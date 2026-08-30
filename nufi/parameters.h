@@ -18,8 +18,8 @@ namespace Parameters {
 
 // IF YOU CHANGE X_DIM or V_DIM: change them here AND in parameters.lua,
 // then re-build. These must match at runtime (checked in load_lua_config).
-inline constexpr unsigned int X_DIM = 3;
-inline constexpr unsigned int V_DIM = 3;
+inline constexpr unsigned int X_DIM = 1;
+inline constexpr unsigned int V_DIM = 1;
 
 inline std::array<double, X_DIM> X_DOMAIN_LEFT;
 inline std::array<double, X_DIM> X_DOMAIN_RIGHT;
@@ -29,7 +29,7 @@ inline std::array<double, X_DIM> LX_INV;
 inline std::array<double, V_DIM> V_DOMAIN_LEFT;
 inline std::array<double, V_DIM> V_DOMAIN_RIGHT;
 
-inline std::array<unsigned int, V_DIM> NV;
+inline std::array<size_t, V_DIM> NV;
 inline std::array<double, V_DIM> DV;
 
 // f0_TYPE:
@@ -164,7 +164,7 @@ inline void load_lua_config(const std::string &luaFilePath) {
     std::copy(vl.begin(), vl.end(), V_DOMAIN_LEFT.begin());
     std::copy(vr.begin(), vr.end(), V_DOMAIN_RIGHT.begin());
     for (unsigned int d = 0; d < V_DIM; ++d) {
-      NV[d] = static_cast<unsigned int>(nv[d]);
+      NV[d] = static_cast<size_t>(nv[d]);
       DV[d] = std::abs(V_DOMAIN_RIGHT[d] - V_DOMAIN_LEFT[d]) /
               static_cast<double>(NV[d]);
     }
