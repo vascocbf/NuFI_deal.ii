@@ -5,6 +5,9 @@
 #include <array>
 #include <cstddef>
 #include <deal.II/base/exceptions.h>
+#include <fstream>
+#include <omp.h>
+#include <sstream>
 #include <string>
 
 #include "lua_config.h"
@@ -15,8 +18,8 @@ namespace Parameters {
 
 // IF YOU CHANGE X_DIM or V_DIM: change them here AND in parameters.lua,
 // then re-build. These must match at runtime (checked in load_lua_config).
-inline constexpr unsigned int X_DIM = 1;
-inline constexpr unsigned int V_DIM = 1;
+inline constexpr unsigned int X_DIM = 3;
+inline constexpr unsigned int V_DIM = 3;
 
 inline std::array<double, X_DIM> X_DOMAIN_LEFT;
 inline std::array<double, X_DIM> X_DOMAIN_RIGHT;
@@ -71,10 +74,64 @@ inline double ION_V_DOMAIN_LEFT;
 inline double ION_V_DOMAIN_RIGHT;
 inline std::array<size_t, V_DIM> NV_ION;
 
+inline size_t V_CHUNK_SIZE;
+inline size_t V_CHUNK_MAX;
+
+inline size_t read_available_memory_bytes() {
+  std::ifstream meminfo("/proc/meminfo");
+  if (!meminfo)
+    return 0;
+
+  std::string line;
+  while (std::getline(meminfo, line)) {
+    if (line.rfind("MemAvailable:", 0) == 0) {
+      std::istringstream iss(line.substr(13));
+      size_t kb = 0;
+      iss >> kb;
+      return kb * 1024; // kb to b
+    }
+  }
+  return 0; // MemAvailable not found (very old kernel)
+}
+
+inline size_t compute_auto_chunk_size() {
+  constexpr size_t MIN_CHUNK = 256;
+  const size_t MAX_CHUNK = V_CHUNK_MAX;
+
+  const int n_threads = omp_get_max_threads();
+
+  const size_t available_bytes = read_available_memory_bytes();
+
+  constexpr size_t per_point_bytes =
+      2 * X_DIM * sizeof(double) + 2 * V_DIM * sizeof(double);
+  constexpr size_t safety_factor = 8;
+
+  if (available_bytes == 0) {
+    std::cout << "[Parameters] Could not read /proc/meminfo; "
+              << "falling back to default V_CHUNK_SIZE = 4096\n";
+    return 4096;
+  }
+
+  const size_t usable_bytes = available_bytes / 2;
+
+  const size_t bytes_per_thread =
+      usable_bytes / static_cast<size_t>(std::max(n_threads, 1));
+
+  size_t chunk = bytes_per_thread / (per_point_bytes * safety_factor);
+
+  chunk = std::max<size_t>(chunk, MIN_CHUNK);
+  chunk = std::min<size_t>(chunk, MAX_CHUNK);
+
+  std::cout << "[Parameters] Auto chunk size: threads=" << n_threads
+            << " available_mem=" << (available_bytes / (1024 * 1024)) << "MB"
+            << " -> V_CHUNK_SIZE=" << chunk << "\n";
+
+  return static_cast<size_t>(chunk);
+}
+
 inline void load_lua_config(const std::string &luaFilePath) {
   LuaConfig config(luaFilePath, "parameters");
 
-  // --- dimension sanity check ---
   const unsigned int lua_x_dim =
       static_cast<unsigned int>(config.get<int>("X_DIM"));
   AssertThrow(lua_x_dim == X_DIM,
@@ -89,7 +146,6 @@ inline void load_lua_config(const std::string &luaFilePath) {
                          ") does not match compiled Parameters::V_DIM (" +
                          std::to_string(V_DIM) + "). Rebuild required."));
 
-  // --- spatial domain (X_DIM entries) ---
   {
     auto xl = config.getArray<double>("X_DOMAIN_LEFT", X_DIM);
     auto xr = config.getArray<double>("X_DOMAIN_RIGHT", X_DIM);
@@ -101,7 +157,6 @@ inline void load_lua_config(const std::string &luaFilePath) {
       LX_INV[d] = 1.0 / LX[d];
   }
 
-  // --- velocity domain (V_DIM entries) ---
   {
     auto vl = config.getArray<double>("V_DOMAIN_LEFT", V_DIM);
     auto vr = config.getArray<double>("V_DOMAIN_RIGHT", V_DIM);
@@ -162,6 +217,11 @@ inline void load_lua_config(const std::string &luaFilePath) {
   }
 
   PLOT_DIR = config.get<std::string>("PLOT_DIR");
+
+  V_CHUNK_MAX = static_cast<size_t>(config.get<int>("V_CHUNK_MAX"));
+  V_CHUNK_SIZE = static_cast<size_t>(config.get<int>("V_CHUNK_SIZE"));
+  if (V_CHUNK_SIZE == 0)
+    V_CHUNK_SIZE = compute_auto_chunk_size();
 }
 
 } // namespace Parameters
