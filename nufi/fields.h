@@ -161,6 +161,45 @@ inline void reset_v_eval(std::vector<array<double, V_DIM>> &x_vals,
   }
 };
 
+template <size_t X_DIM>
+inline std::vector<std::array<double, X_DIM>>
+make_x_eval_slice(const size_t free_dim,
+                  const std::array<double, X_DIM> &x_fixed,
+                  const size_t Nx_free) {
+  const double left = Parameters::X_DOMAIN_LEFT[free_dim];
+  const double right = Parameters::X_DOMAIN_RIGHT[free_dim];
+  const double dx = (right - left) / static_cast<double>(Nx_free);
+
+  std::vector<std::array<double, X_DIM>> x_eval(Nx_free);
+  for (size_t i = 0; i < Nx_free; ++i) {
+    std::array<double, X_DIM> x = x_fixed;
+    x[free_dim] = left + (static_cast<double>(i) + 0.5) * dx;
+    x_eval[i] = x;
+  }
+  return x_eval;
+}
+
+template <size_t V_DIM>
+inline std::vector<std::array<double, V_DIM>>
+make_v_eval_slice(const size_t free_dim,
+                  const std::array<double, V_DIM> &v_fixed,
+                  const size_t Nv_free, const bool is_electron = true) {
+
+  const double left = is_electron ? Parameters::V_DOMAIN_LEFT[free_dim]
+                                  : Parameters::ION_V_DOMAIN_LEFT;
+  const double right = is_electron ? Parameters::V_DOMAIN_RIGHT[free_dim]
+                                   : Parameters::ION_V_DOMAIN_RIGHT;
+  const double dv = (right - left) / static_cast<double>(Nv_free);
+
+  std::vector<std::array<double, V_DIM>> v_eval(Nv_free);
+  for (size_t j = 0; j < Nv_free; ++j) {
+    std::array<double, V_DIM> v = v_fixed;
+    v[free_dim] = left + (static_cast<double>(j) + 0.5) * dv;
+    v_eval[j] = v;
+  }
+  return v_eval;
+}
+
 template <size_t X_DIM, size_t V_DIM>
 inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
                  const size_t f0_type = Parameters::f0_TYPE) {
