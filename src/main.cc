@@ -142,10 +142,11 @@ template <size_t X_DIM, size_t V_DIM> void run() {
       size_t free_x_dim = 0;
       size_t free_v_dim = 1;
 
-      auto slice = compute_diagnostics_slice<2, 2>(
-          solver, it, grid_versions, phi_history, free_x_dim, free_v_dim,
-          x_fixed, v_fixed, Parameters::PLOT_NX[free_x_dim],
-          Parameters::NV[free_v_dim]);
+      auto slice =
+          compute_diagnostics_slice<Parameters::X_DIM, Parameters::V_DIM>(
+              solver, it, grid_versions, phi_history, free_x_dim, free_v_dim,
+              x_fixed, v_fixed, Parameters::PLOT_NX[free_x_dim],
+              Parameters::NV[free_v_dim]);
 
       save_f_slice(slice, Parameters::PLOT_DIR + "f_slice_" +
                               std::to_string(it) + ".dat");

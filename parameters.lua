@@ -85,7 +85,14 @@ local PLOT_DX =
   LX[2] / PLOT_NX[2],
   LX[3] / PLOT_NX[3] }
 
-local V_CHUNK_SIZE = 0 -- '0' corresponds to the automatic hardware check
+local V_CHUNK_SIZE_BY_VDIM = {
+  [1] = 2 ^ 17,
+  [2] = 2 ^ 15,
+  [3] = 2 ^ 12
+}
+
+local V_CHUNK_SIZE = V_CHUNK_SIZE_BY_VDIM[V_DIM] -- '0' corresponds to the automatic hardware check
+-- local V_CHUNK_SIZE =0
 local V_CHUNK_MAX = 2 ^ 17
 
 parameters = {

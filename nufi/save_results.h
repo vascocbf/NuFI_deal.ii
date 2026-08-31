@@ -21,6 +21,7 @@ template <size_t X_DIM, size_t V_DIM> struct DiagnosticsSnapshot {
   std::array<size_t, V_DIM> Nv = {};
   std::vector<std::array<double, X_DIM>> x_eval;
   std::vector<std::array<double, V_DIM>> v_eval;
+  const bool is_electron = true;
   std::vector<double> f;
   std::vector<double> rho;
   std::vector<std::array<double, X_DIM>> E;
@@ -33,6 +34,7 @@ template <size_t X_DIM, size_t V_DIM> struct DiagnosticsSlice {
   std::array<double, V_DIM> v_fixed = {};
   std::vector<std::array<double, X_DIM>> x_eval;
   std::vector<std::array<double, V_DIM>> v_eval;
+  const bool is_electron = true;
   std::vector<double> f;
   std::vector<double> rho;
   std::vector<std::array<double, X_DIM>> E;
@@ -62,7 +64,8 @@ compute_diagnostics(const NuFISolver<X_DIM, V_DIM> &solver, unsigned int n,
                     std::vector<GridStructure<X_DIM>> &grid_struct,
                     std::vector<SolutionSnapshot<X_DIM>> &phi_history,
                     const std::array<size_t, X_DIM> &Nx_out,
-                    const std::array<size_t, V_DIM> &Nv_out) {
+                    const std::array<size_t, V_DIM> &Nv_out,
+                    const bool is_electron = true) {
   DiagnosticsSnapshot<X_DIM, V_DIM> snap;
   snap.Nx = Nx_out;
   snap.Nv = Nv_out;
@@ -79,13 +82,15 @@ compute_diagnostics(const NuFISolver<X_DIM, V_DIM> &solver, unsigned int n,
 
   std::array<double, V_DIM> dv = make_dv(Nv_out);
 
-  snap.v_eval = make_v_eval(Nv_out);
+  snap.v_eval = make_v_eval(Nv_out, is_electron);
+
+  snap.is_electron = is_electron;
 
   snap.f.resize(n_x * n_v);
 #pragma omp parallel for
   for (size_t j = 0; j < n_v; ++j) {
-    std::vector<double> val =
-        solver.eval_f(n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history);
+    std::vector<double> val = solver.eval_f(
+        n, snap.x_eval, snap.v_eval[j], grid_struct, phi_history, is_electron);
     std::copy(val.begin(), val.end(), snap.f.begin() + j * n_x);
   }
 
@@ -101,9 +106,9 @@ compute_diagnostics(const NuFISolver<X_DIM, V_DIM> &solver, unsigned int n,
   auto x_copy = snap.x_eval;
   snap.E = eval<X_DIM>(x_copy, grid_struct[phi_history[n].grid_version],
                        phi_history[n].solution);
-  for (auto &e : snap.E)
+  for (auto &E : snap.E)
     for (size_t d = 0; d < X_DIM; ++d)
-      e[d] = -e[d];
+      E[d] = -E[d];
 
   return snap;
 }
@@ -114,7 +119,8 @@ DiagnosticsSlice<X_DIM, V_DIM> compute_diagnostics_slice(
     std::vector<GridStructure<X_DIM>> &grid_struct,
     std::vector<SolutionSnapshot<X_DIM>> &phi_history, size_t free_x_dim,
     size_t free_v_dim, const std::array<double, X_DIM> &x_fixed,
-    const std::array<double, V_DIM> &v_fixed, size_t Nx_free, size_t Nv_free) {
+    const std::array<double, V_DIM> &v_fixed, size_t Nx_free, size_t Nv_free,
+    const bool is_electron = true) {
 
   AssertThrow(
       free_x_dim < X_DIM,
@@ -129,14 +135,18 @@ DiagnosticsSlice<X_DIM, V_DIM> compute_diagnostics_slice(
   slice.x_fixed = x_fixed;
   slice.v_fixed = v_fixed;
 
+  slice.is_electron = is_electron;
+
   slice.x_eval = make_x_eval_slice<X_DIM>(free_x_dim, x_fixed, Nx_free);
-  slice.v_eval = make_v_eval_slice<V_DIM>(free_v_dim, v_fixed, Nv_free);
+  slice.v_eval =
+      make_v_eval_slice<V_DIM>(free_v_dim, v_fixed, Nv_free, is_electron);
 
   slice.f.resize(Nx_free * Nv_free);
 #pragma omp parallel for
   for (size_t j = 0; j < Nv_free; ++j) {
-    std::vector<double> val = solver.eval_f(n, slice.x_eval, slice.v_eval[j],
-                                            grid_struct, phi_history);
+    std::vector<double> val =
+        solver.eval_f(n, slice.x_eval, slice.v_eval[j], grid_struct,
+                      phi_history, is_electron);
     std::copy(val.begin(), val.end(), slice.f.begin() + j * Nx_free);
   }
 
@@ -149,9 +159,9 @@ DiagnosticsSlice<X_DIM, V_DIM> compute_diagnostics_slice(
   auto x_copy = slice.x_eval;
   slice.E = eval<X_DIM>(x_copy, grid_struct[phi_history[n].grid_version],
                         phi_history[n].solution);
-  for (auto &e : slice.E)
+  for (auto &E : slice.E)
     for (size_t d = 0; d < X_DIM; ++d)
-      e[d] = -e[d];
+      E[d] = -E[d];
 
   return slice;
 }
