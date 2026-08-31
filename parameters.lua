@@ -41,7 +41,7 @@ local ION_EPS            = 0.01
 local ION_V_DOMAIN_LEFT  = -0.4
 local ION_V_DOMAIN_RIGHT = 0.4
 local NV_ION_BY_VDIM     = {
-  [1] = { 128, 128, 128 },
+  [1] = { 512, 512, 512 },
   [2] = { 32, 32, 32 },
   [3] = { 8, 8, 8 },
 }
@@ -85,6 +85,7 @@ local PLOT_DX =
   LX[2] / PLOT_NX[2],
   LX[3] / PLOT_NX[3] }
 
+local CHUNK_V = false
 local V_CHUNK_SIZE_BY_VDIM = {
   [1] = 2 ^ 17,
   [2] = 2 ^ 15,
@@ -95,7 +96,7 @@ local V_CHUNK_SIZE = V_CHUNK_SIZE_BY_VDIM[V_DIM] -- '0' corresponds to the autom
 -- local V_CHUNK_SIZE =0
 local V_CHUNK_MAX = 2 ^ 17
 
-parameters = {
+Parameters = {
   X_DIM = X_DIM,
   V_DIM = V_DIM,
 
@@ -148,6 +149,7 @@ parameters = {
   PLOT_DX = PLOT_DX,
   PLOT_DIR = "results/",
 
+  CHUNK_V = CHUNK_V,
   V_CHUNK_SIZE = V_CHUNK_SIZE,
   V_CHUNK_MAX = V_CHUNK_MAX,
 }

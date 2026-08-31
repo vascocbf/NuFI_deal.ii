@@ -310,19 +310,30 @@ double NuFISolver<X_DIM, V_DIM>::eval_density_at_x(
 
   double rho_local = 0.0;
 
-  for (size_t chunk_start = 0; chunk_start < n_v; chunk_start += chunk_size) {
-    const size_t chunk_end = std::min(n_v, chunk_start + chunk_size);
-    const size_t local_n = chunk_end - chunk_start;
+  if (Parameters::CHUNK_V) {
+    for (size_t chunk_start = 0; chunk_start < n_v; chunk_start += chunk_size) {
+      const size_t chunk_end = std::min(n_v, chunk_start + chunk_size);
+      const size_t local_n = chunk_end - chunk_start;
 
-    std::vector<array<double, X_DIM>> X_chunk(local_n, x_point);
-    std::vector<array<double, V_DIM>> U_chunk(v_eval.begin() + chunk_start,
-                                              v_eval.begin() + chunk_end);
+      std::vector<array<double, X_DIM>> X_chunk(local_n, x_point);
+      std::vector<array<double, V_DIM>> U_chunk(v_eval.begin() + chunk_start,
+                                                v_eval.begin() + chunk_end);
 
-    std::vector<double> ftilda_chunk =
-        eval_ftilda_batch(n, std::move(X_chunk), std::move(U_chunk),
-                          grid_struct, phi_history, is_electron);
+      std::vector<double> ftilda_chunk =
+          eval_ftilda_batch(n, std::move(X_chunk), std::move(U_chunk),
+                            grid_struct, phi_history, is_electron);
 
-    for (double f : ftilda_chunk)
+      for (double f : ftilda_chunk)
+        rho_local += f;
+    }
+  } else {
+    std::vector<array<double, X_DIM>> X(v_eval.size(), x_point);
+    std::vector<array<double, V_DIM>> U(v_eval);
+
+    std::vector<double> f_tilda_full = eval_ftilda_batch(
+        n, std::move(X), std::move(U), grid_struct, phi_history, is_electron);
+
+    for (double f : f_tilda_full)
       rho_local += f;
   }
 

@@ -74,6 +74,7 @@ inline double ION_V_DOMAIN_LEFT;
 inline double ION_V_DOMAIN_RIGHT;
 inline std::array<size_t, V_DIM> NV_ION;
 
+inline bool CHUNK_V;
 inline size_t V_CHUNK_SIZE;
 inline size_t V_CHUNK_MAX;
 
@@ -130,7 +131,7 @@ inline size_t compute_auto_chunk_size() {
 }
 
 inline void load_lua_config(const std::string &luaFilePath) {
-  LuaConfig config(luaFilePath, "parameters");
+  LuaConfig config(luaFilePath, "Parameters");
 
   const unsigned int lua_x_dim =
       static_cast<unsigned int>(config.get<int>("X_DIM"));
@@ -218,6 +219,7 @@ inline void load_lua_config(const std::string &luaFilePath) {
 
   PLOT_DIR = config.get<std::string>("PLOT_DIR");
 
+  CHUNK_V = config.get<bool>("CHUNK_V");
   V_CHUNK_MAX = static_cast<size_t>(config.get<int>("V_CHUNK_MAX"));
   V_CHUNK_SIZE = static_cast<size_t>(config.get<int>("V_CHUNK_SIZE"));
   if (V_CHUNK_SIZE == 0)
