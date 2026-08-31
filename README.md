@@ -40,14 +40,26 @@ solver didnt converge but error was of order e-7 for 9th grid version with 4k do
 notes:
 
 - -O3 compile flag accelerated runtime about 100x
-- Locator not optimized for 1d.
-- Works for higher dimensions (to be tested)
 - locator up to O(dim * Max_depth)
+- dealii grid is periodic on all directions
+- |E| and |E|^2 saved every time from latest solution
+- assemble system collects all q_points to be evaluated and hands them to the rhs_function defined in run (NuFISolver::eval_rho)
+- eval sequence:
+    - eval_rho (called once per it for all q_points)
+    - eval_species_density for electrons (and ions) (all points)
+        - makes full v_eval (on all V_DIMs)
+        - builds vector<array<...>> for both x and v
+        - calls eval_ftilda_batch for all X and V (way way too big)
+    - density integrated from outputed f 
+
+
 
 to-do:
 
-- Look at multigrid solvers (steps 16, 37, 64)
-- add ions
-- for 1x2v add electro-magnetic
+- Look at multigrid solvers (steps 16, 37, 64) (for GPU solver, probably not needed, GPU needed for backwards characteristics)
+- add electro-magnetic
 - test other f0 s
 - test longer simulations with more plotted points
+
+
+

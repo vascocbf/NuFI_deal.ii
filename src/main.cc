@@ -14,7 +14,7 @@ using std::array;
 template <size_t X_DIM, size_t V_DIM> void run() {
   unsigned int Nt = std::floor(Parameters::TMAX / Parameters::DT);
 
-  array<size_t, V_DIM> Nv{};
+  array<size_t, V_DIM> Nv = {};
   for (size_t d = 0; d < V_DIM; ++d)
     Nv[d] = static_cast<size_t>(Parameters::NV[d]);
 
@@ -23,7 +23,7 @@ template <size_t X_DIM, size_t V_DIM> void run() {
   using std::abs;
   using std::max;
 
-  std::cout << "Initializing dealii Poisson Solver\n";
+  std::cout << "[run] Initializing dealii Poisson Solver\n";
   poisson.initialize();
 
   std::vector<double> int_E_squared;
@@ -59,14 +59,15 @@ template <size_t X_DIM, size_t V_DIM> void run() {
     double refine_time = 0.0;
     double plot_time = 0.0;
 
-    std::cout << "Timestep: " << it << " / " << Nt
+    std::cout << "[run: for(it<NT)] Timestep: " << it << " / " << Nt
               << " (simulation time = " << it * Parameters::DT << ")"
               << "\n";
 
     // START: diagnostics
-    std::cout << "cells = " << poisson.get_triangulation().n_active_cells()
-              << "\n"
-              << " dofs = " << poisson.get_dof_handler().n_dofs() << "\n";
+    std::cout << "[run: for(it<NT)] cells = "
+              << poisson.get_triangulation().n_active_cells() << "\n"
+              << "[run: for(it<NT)] dofs = "
+              << poisson.get_dof_handler().n_dofs() << "\n";
     // END: diagnostics
 
     double compute_start = timer.elapsed();
@@ -162,10 +163,10 @@ void clear_results_directory(const std::string &dir) {
 
 int main() {
   omp_set_max_active_levels(1);
-  std::cout << "Threads: " << omp_get_max_threads() << "\n";
+  std::cout << "[main] Threads: " << omp_get_max_threads() << "\n";
   try {
 
-    std::cout << "Loading parameters from lua config" << "\n";
+    std::cout << "[main] Loading parameters from lua config" << "\n";
     Parameters::load_lua_config("parameters.lua");
 
     clear_results_directory("results");
