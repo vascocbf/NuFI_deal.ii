@@ -48,11 +48,12 @@ notes:
     - eval_rho (called once per it for all q_points)
     - eval_species_density for electrons (and ions) (all points)
         - makes full v_eval (on all V_DIMs)
-        - builds vector<array<...>> for both x and v
+        - parallel on for(xi<x_size)
+            - calls eval_density_at_x for each x
+                - calls eval_ftilda_batch in chunks of (xi, v_chunked)
+            - density\[xi\] = rho_local (@xi) * v_cell_volume
         - calls eval_ftilda_batch for all X and V (way way too big)
     - density integrated from outputed f 
-
-
 
 to-do:
 
