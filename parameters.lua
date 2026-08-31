@@ -1,8 +1,8 @@
 --
 -- IF YOU CHANGE X or V DIMS CHANGE THEM ON `nufi/parameters.h` AND THEN RE-BUILD
 --
-local X_DIM          = 3
-local V_DIM          = 3
+local X_DIM          = 1
+local V_DIM          = 1
 
 local X_DOMAIN_LEFT  = { 0.0, 0.0, 0.0 }
 local X_DOMAIN_RIGHT = { 4 * math.pi, 4 * math.pi, 4 * math.pi }
@@ -49,7 +49,7 @@ local NV_ION             = NV_ION_BY_VDIM[V_DIM]
 
 
 -- deal.ii options
-local GLOBAL_REFINEMENT = 3
+local GLOBAL_REFINEMENT = 8
 local FE_DEGREE = 3
 local CONVERGENCE_ITERATIONS = 5000
 local CONVERGENCE_LIMIT = 1e-7
@@ -84,6 +84,9 @@ local PLOT_DX =
 { LX[1] / PLOT_NX[1],
   LX[2] / PLOT_NX[2],
   LX[3] / PLOT_NX[3] }
+
+local V_CHUNK_SIZE = 0 -- '0' corresponds to the automatic hardware check
+local V_CHUNK_MAX = 2 ^ 17
 
 parameters = {
   X_DIM = X_DIM,
@@ -137,4 +140,7 @@ parameters = {
   PLOT_NX = PLOT_NX,
   PLOT_DX = PLOT_DX,
   PLOT_DIR = "results/",
+
+  V_CHUNK_SIZE = V_CHUNK_SIZE,
+  V_CHUNK_MAX = V_CHUNK_MAX,
 }
