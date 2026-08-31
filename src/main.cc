@@ -115,21 +115,44 @@ template <size_t X_DIM, size_t V_DIM> void run() {
       double plot_start = timer.elapsed();
 
       std::cout << "Saving results...   ";
-      DiagnosticsSnapshot<X_DIM, V_DIM> snap =
-          compute_diagnostics<X_DIM, V_DIM>(
-              solver, it, grid_versions, phi_history, Parameters::PLOT_NX, Nv);
+      // SAVE FULL SPACE
+      /*
+            DiagnosticsSnapshot<X_DIM, V_DIM> snap =
+                compute_diagnostics<X_DIM, V_DIM>(
+                    solver, it, grid_versions, phi_history, Parameters::PLOT_NX,
+         Nv);
 
-      save_f(snap, Parameters::PLOT_DIR + "f_" + std::to_string(it) + ".dat");
-      save_rho(snap,
-               Parameters::PLOT_DIR + "rho_" + std::to_string(it) + ".dat");
-      save_Efield(snap,
-                  Parameters::PLOT_DIR + "E_" + std::to_string(it) + ".dat");
+            save_f(snap, Parameters::PLOT_DIR + "f_" + std::to_string(it) +
+         ".dat"); save_rho(snap, Parameters::PLOT_DIR + "rho_" +
+         std::to_string(it) + ".dat"); save_Efield(snap, Parameters::PLOT_DIR +
+         "E_" + std::to_string(it) + ".dat");
 
       if (!Parameters::SAVE_INT_E_ALWAYS) {
         // OLD; Not needed because this is done above
         int_E_squared.push_back(compute_int_E_squared(snap));
         int_E_squared_times.push_back(it * Parameters::DT);
       }
+      */
+
+      // SAVE SLICE EXAMPLE 2x2v
+      // fixed coordinate to make slice, free_x_dim direction ignored
+      array<double, 2> x_fixed = {{0., 2.}};
+      array<double, 2> v_fixed = {{-1., 0.}};
+      size_t free_x_dim = 0;
+      size_t free_v_dim = 1;
+
+      auto slice = compute_diagnostics_slice<2, 2>(
+          solver, it, grid_versions, phi_history, free_x_dim, free_v_dim,
+          x_fixed, v_fixed, Parameters::PLOT_NX[free_x_dim],
+          Parameters::NV[free_v_dim]);
+
+      save_f_slice(slice, Parameters::PLOT_DIR + "f_slice_" +
+                              std::to_string(it) + ".dat");
+      save_rho_slice(slice, Parameters::PLOT_DIR + "rho_slice_" +
+                                std::to_string(it) + ".dat");
+      save_Efield_slice(slice, Parameters::PLOT_DIR + "E_slice_" +
+                                   std::to_string(it) + ".dat");
+
       save_time_series(int_E_squared_times, int_E_squared,
                        Parameters::PLOT_DIR + "int_E_sqr.dat");
 

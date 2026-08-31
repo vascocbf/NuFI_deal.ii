@@ -77,17 +77,9 @@ compute_diagnostics(const NuFISolver<X_DIM, V_DIM> &solver, unsigned int n,
 
   snap.x_eval = make_x_eval<X_DIM>(Nx_out);
 
-  std::array<double, V_DIM> dv = {};
-  for (size_t d = 0; d < V_DIM; ++d)
-    dv[d] = (Parameters::V_DOMAIN_RIGHT[d] - Parameters::V_DOMAIN_LEFT[d]) /
-            static_cast<double>(Nv_out[d]);
+  std::array<double, V_DIM> dv = make_dv(Nv_out);
 
-  snap.v_eval.resize(n_v);
-  for (size_t j = 0; j < n_v; ++j) {
-    auto idx = detail::unravel_index<V_DIM>(j, Nv_out);
-    for (size_t d = 0; d < V_DIM; ++d)
-      snap.v_eval[j][d] = Parameters::V_DOMAIN_LEFT[d] + (idx[d] + 0.5) * dv[d];
-  }
+  snap.v_eval = make_v_eval(Nv_out);
 
   snap.f.resize(n_x * n_v);
 #pragma omp parallel for
@@ -124,10 +116,12 @@ DiagnosticsSlice<X_DIM, V_DIM> compute_diagnostics_slice(
     size_t free_v_dim, const std::array<double, X_DIM> &x_fixed,
     const std::array<double, V_DIM> &v_fixed, size_t Nx_free, size_t Nv_free) {
 
-  AssertThrow(free_x_dim < X_DIM,
-              ExcMessage("compute_diagnostics_slice: free_x_dim out of range"));
-  AssertThrow(free_v_dim < V_DIM,
-              ExcMessage("compute_diagnostics_slice: free_v_dim out of range"));
+  AssertThrow(
+      free_x_dim < X_DIM,
+      ExcMessage("[compute_diagnostics_slice] free_x_dim out of range"));
+  AssertThrow(
+      free_v_dim < V_DIM,
+      ExcMessage("[compute_diagnostics_slice] free_v_dim out of range"));
 
   DiagnosticsSlice<X_DIM, V_DIM> slice;
   slice.free_x_dim = free_x_dim;

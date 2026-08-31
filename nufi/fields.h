@@ -231,9 +231,9 @@ inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
   {
     computed_max = maxwell(v);
 
-    // TODO: For two-stream instability on higher dimensions
-    //       in which direction is the perturbation? just x_1 or more
-    //       same question on f0_ion
+    // WARNING: For two-stream instability on higher dimensions
+    //          in which direction is the perturbation? just x_1 or more
+    //          same question on f0_ion
     prefactor = (1.0 + eps * std::cos(k * x[0]));
 
     double v2 = 0;
