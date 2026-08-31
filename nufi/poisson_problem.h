@@ -453,8 +453,8 @@ template <int X_DIM> void PoissonProblem<X_DIM>::solve(size_t it) {
 }
 
 template <int X_DIM> void PoissonProblem<X_DIM>::initialize() {
-  create_mesh();  // build grid
-  setup_system(); // distribute DoFs and matrices
+  create_mesh();
+  setup_system();
 }
 
 template <int X_DIM>
