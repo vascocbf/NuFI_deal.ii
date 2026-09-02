@@ -133,8 +133,8 @@ update_grid_versions(std::vector<GridStructure<X_DIM>> &grid_versions,
 
   grid_versions.push_back(std::move(grid));
 
-  std::cout << "@ update_grid_history: "
-            << "grid version " << grid.grid_version << " size "
+  std::cout << "[update_grid_versions] update_grid_history: "
+            << "grid version " << grid.grid_version << " with size "
             << poisson.get_solution().size() << "\n";
 }
 
@@ -151,7 +151,7 @@ update_solution_history(std::vector<SolutionSnapshot<X_DIM>> &solution_history,
   Vector<double> solution = poisson.get_solution();
   snapshot.solution = solution;
 
-  std::cout << "@ update_solution_history: "
+  std::cout << "[update_solution_history] "
             << "grid version " << current_grid_version << " size "
             << poisson.get_solution().size() << "\n";
 

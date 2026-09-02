@@ -357,9 +357,11 @@ template <int X_DIM> void PoissonProblem<X_DIM>::assemble_system() {
   Assert(rhs_function,
          ExcMessage("Poisson RHS function has not been initialized."));
 
-  std::cout << "Start of full rho eval..." << "\n";
+  std::cout << "[PoissonProblem::assemble_system] Start of full rho eval..."
+            << "\n";
   std::vector<double> all_rho = rhs_function(all_q_points);
-  std::cout << "End of full rho eval..." << "\n";
+  std::cout << "[PoissonProblem::assemble_system] End of full rho eval..."
+            << "\n";
 
   Assert(all_rho.size() == all_q_points.size(),
          ExcMessage("rhs_function returned wrong size"));
@@ -436,10 +438,8 @@ template <int X_DIM> void PoissonProblem<X_DIM>::estimate_error() {
   error_estimate = error_per_cell.l2_norm();
 }
 
-template <int X_DIM> void PoissonProblem<X_DIM>::solve(size_t it) {
-
-  std::cout << "Calling PoissonProblem::solve for time-step " << it << "\n";
-
+template <int X_DIM>
+void PoissonProblem<X_DIM>::solve([[maybe_unused]] size_t it) {
   SolverControl solver_control(Parameters::CONVERGENCE_ITERATIONS,
                                Parameters::CONVERGENCE_LIMIT *
                                    system_rhs.l2_norm());

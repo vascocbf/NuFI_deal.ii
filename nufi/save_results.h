@@ -21,7 +21,7 @@ template <size_t X_DIM, size_t V_DIM> struct DiagnosticsSnapshot {
   std::array<size_t, V_DIM> Nv = {};
   std::vector<std::array<double, X_DIM>> x_eval;
   std::vector<std::array<double, V_DIM>> v_eval;
-  const bool is_electron = true;
+  bool is_electron = true;
   std::vector<double> f;
   std::vector<double> rho;
   std::vector<std::array<double, X_DIM>> E;
@@ -34,7 +34,7 @@ template <size_t X_DIM, size_t V_DIM> struct DiagnosticsSlice {
   std::array<double, V_DIM> v_fixed = {};
   std::vector<std::array<double, X_DIM>> x_eval;
   std::vector<std::array<double, V_DIM>> v_eval;
-  const bool is_electron = true;
+  bool is_electron = true;
   std::vector<double> f;
   std::vector<double> rho;
   std::vector<std::array<double, X_DIM>> E;

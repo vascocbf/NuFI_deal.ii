@@ -110,7 +110,8 @@ template <size_t X_DIM, size_t V_DIM> void run() {
     double timer_elapsed = timer.elapsed();
     double step_time = timer_elapsed - time_elapsed_before;
 
-    std::cout << "step made in " << step_time << " seconds\n\n";
+    std::cout << "[run: for(it<Nt)] step made in " << step_time
+              << " seconds\n\n";
 
     if (it % Parameters::PLOT_FREQUENCY == 0) {
       double plot_start = timer.elapsed();
@@ -164,7 +165,8 @@ template <size_t X_DIM, size_t V_DIM> void run() {
     }
 
     total_time = total_timer.elapsed();
-    std::cout << "Time since start = " << total_time << "\n\n";
+    std::cout << "[run: for(it<Nt)] Time since start = " << total_time
+              << "\n\n";
 
     time_file << it << " " << step_time << " " << total_time << " "
               << compute_time << " " << refine_time << " " << plot_time << "\n";

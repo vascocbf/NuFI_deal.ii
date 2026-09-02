@@ -114,9 +114,11 @@ CellLocation<X_DIM> CellLocator<X_DIM>::locate(const Point<X_DIM> &p) const {
   Point<X_DIM> xi;
   for (unsigned int d = 0; d < X_DIM; ++d) {
     xi[d] = (p_wrapped[d] - lower[d]) / (upper[d] - lower[d]);
-    xi[d] = std::min(std::max(xi[d], 0.0), 1.0); // of cell at base level
+    xi[d] = std::min(std::max(xi[d], 0.0), 1.0);
   }
 
+  // TODO: I think this loop can be made into O(1)
+  //       because the base_level grid is uniform
   size_t idx = 0;
   Point<X_DIM> xi_local = xi;
   for (unsigned int l = 0; l < base_level; ++l) {
@@ -131,6 +133,9 @@ CellLocation<X_DIM> CellLocator<X_DIM>::locate(const Point<X_DIM> &p) const {
   xi = xi_local;
 
   while (cell->has_children()) {
+    // TODO: Check how cheap this child_cell_from_point() is
+    //       im asking this because there seems to be no selection for 'cell' in
+    //       this call
     const unsigned int child_index =
         GeometryInfo<X_DIM>::child_cell_from_point(xi);
     xi = GeometryInfo<X_DIM>::cell_to_child_coordinates(xi, child_index);
