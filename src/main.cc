@@ -18,7 +18,8 @@ template <size_t X_DIM, size_t V_DIM> void run() {
   for (size_t d = 0; d < V_DIM; ++d)
     Nv[d] = static_cast<size_t>(Parameters::NV[d]);
 
-  PoissonProblem<X_DIM> poisson(Parameters::FE_DEGREE);
+  PoissonProblem<X_DIM> poisson(Parameters::FE_DEGREE,
+                                /*mapping_dregree = */ 1);
   NuFISolver<X_DIM, V_DIM> solver;
   using std::abs;
   using std::max;

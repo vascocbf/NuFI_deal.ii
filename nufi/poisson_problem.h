@@ -68,7 +68,7 @@ using namespace dealii;
 
 template <int X_DIM> class PoissonProblem {
 public:
-  PoissonProblem(unsigned int degree);
+  PoissonProblem(unsigned int fe_degree, unsigned int mapping_degree = 1);
 
   void initialize();
 
@@ -154,9 +154,10 @@ void PoissonProblem<X_DIM>::set_rhs_function(
 }
 
 template <int X_DIM>
-PoissonProblem<X_DIM>::PoissonProblem(unsigned int degree)
-    : mapping(degree), fe(degree), triangulation(), dof_handler(triangulation) {
-}
+PoissonProblem<X_DIM>::PoissonProblem(unsigned int fe_degree,
+                                      unsigned int mapping_degree)
+    : mapping(mapping_degree), fe(fe_degree), triangulation(),
+      dof_handler(triangulation) {}
 
 // Uses FEPointEvaluation
 //
