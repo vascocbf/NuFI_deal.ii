@@ -87,6 +87,60 @@ echo "    out.perf    : ${PERF_SCRIPT_OUT}"
 echo "    out.folded  : ${FOLDED_OUT}"
 echo "    flamegraph  : ${FLAMEGRAPH_OUT}"
 
+INT_E_SQR_FILE="./results/int_E_sqr.dat"
+INT_E_SQR_PLOT="./results/int_E_sqr.png"
+
+read -r -p "Plot |E|^2 time series in gnuplot? [Y/n] " PLOT_CHOICE
+case "${PLOT_CHOICE}" in
+  [nN]|[nN][oO])
+    ;;
+  *)
+    if [[ ! -s "${INT_E_SQR_FILE}" ]]; then
+      echo "warning: ${INT_E_SQR_FILE} not found or empty, skipping plot." >&2
+    elif command -v gnuplot >/dev/null 2>&1; then
+
+          if [[ ! -s "${INT_E_SQR_FILE}" ]]; then
+      echo "warning: ${INT_E_SQR_FILE} not found or empty, skipping plot." >&2
+    elif command -v gnuplot >/dev/null 2>&1; then
+      read -r -p "Use log scale for y axis? [y/N] " LOGSCALE_CHOICE
+      LOGSCALE_CMD=""
+      case "${LOGSCALE_CHOICE}" in
+        [yY]|[yY][eE][sS])
+          LOGSCALE_CMD="set logscale y;"
+          ;;
+        *)
+          ;;
+      esac
+
+      gnuplot -e "
+        set terminal pngcairo size 1000,600;
+        set output '${INT_E_SQR_PLOT}';
+        set title 'Electric field energy';
+        set xlabel 'time [s]';
+        set ylabel '0.5 * int E^2 dx';
+        set grid;
+        ${LOGSCALE_CMD}
+        plot '${INT_E_SQR_FILE}' using 1:2 with lines title 'E^2(t)'
+      "
+      echo "==> Saved plot to ${INT_E_SQR_PLOT}"
+
+      gnuplot -p -e "
+        set title 'Electric field energy';
+        set xlabel 'time [s]';
+        set ylabel '0.5 * int E^2 dx';
+        set grid;
+        ${LOGSCALE_CMD}
+        plot '${INT_E_SQR_FILE}' using 1:2 with lines title 'E^2(t)'
+      "
+    else
+      echo "warning: 'gnuplot' not found on PATH; open it manually: ${INT_E_SQR_FILE}" >&2
+    fi
+    else
+      echo "warning: 'gnuplot' not found on PATH; open it manually: ${INT_E_SQR_FILE}" >&2
+    fi
+    ;;
+esac
+
 read -r -p "Delete perf folder (${OUT_DIR})? [y/N] " DELETE_CHOICE
 case "${DELETE_CHOICE}" in
   [yY]|[yY][eE][sS])
