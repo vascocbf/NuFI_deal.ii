@@ -63,7 +63,7 @@ public:
 private:
   double
   eval_density_at_x(unsigned int n, const array<double, X_DIM> &x_point,
-                    const std::vector<array<double, V_DIM>> &v_eval,
+                    const array<size_t, V_DIM> &Nv,
                     const std::vector<GridStructure<X_DIM>> &grid_struct,
                     const std::vector<SolutionSnapshot<X_DIM>> &phi_history,
                     bool is_electron) const;

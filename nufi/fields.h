@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <deal.II/base/function.h>
 #include <deal.II/base/point.h>
+#include <omp.h>
 #include <vector>
 
 using namespace dealii;
@@ -30,7 +31,7 @@ make_x_eval(const array<size_t, X_DIM> &Nx) {
 
   std::vector<array<double, X_DIM>> x_eval(n_points);
 
-#pragma omp parallel for
+#pragma omp parallel for if (!omp_in_parallel())
   for (size_t i = 0; i < n_points; ++i) {
     size_t index = i;
     array<double, X_DIM> x = {};
@@ -64,7 +65,7 @@ inline void reset_x_eval(std::vector<array<double, X_DIM>> &x_vals,
   if (x_vals.size() != n_points)
     x_vals.resize(n_points);
 
-#pragma omp parallel for
+#pragma omp parallel for if (!omp_in_parallel())
   for (size_t i = 0; i < n_points; ++i) {
     size_t index = i;
     array<double, X_DIM> x = {};
@@ -110,7 +111,7 @@ make_v_eval(const array<size_t, V_DIM> &Nv, const bool is_electron = true) {
 
   std::vector<array<double, V_DIM>> x_eval(n_points);
 
-#pragma omp parallel for
+#pragma omp parallel for if (!omp_in_parallel())
   for (size_t i = 0; i < n_points; ++i) {
     size_t index = i;
     array<double, V_DIM> x = {};
@@ -125,6 +126,37 @@ make_v_eval(const array<size_t, V_DIM> &Nv, const bool is_electron = true) {
   }
 
   return x_eval;
+}
+
+template <size_t V_DIM>
+inline std::vector<array<double, V_DIM>>
+make_v_eval_chunk(const array<size_t, V_DIM> &Nv, size_t chunk_start,
+                  size_t chunk_end, const bool is_electron = true) {
+
+  const array<double, V_DIM> dv = make_dv<V_DIM>(Nv, is_electron);
+
+  array<double, V_DIM> v_min = {};
+  for (size_t d = 0; d < V_DIM; ++d)
+    v_min[d] = is_electron ? Parameters::V_DOMAIN_LEFT[d]
+                           : Parameters::ION_V_DOMAIN_LEFT;
+
+  const size_t local_n = chunk_end - chunk_start;
+  std::vector<array<double, V_DIM>> v_eval(local_n);
+
+#pragma omp parallel for if (!omp_in_parallel())
+  for (size_t k = 0; k < local_n; ++k) {
+    size_t index = chunk_start + k;
+    array<double, V_DIM> x = {};
+
+    for (size_t d = 0; d < V_DIM; ++d) {
+      size_t j = index % Nv[d];
+      index /= Nv[d];
+      x[d] = v_min[d] + (static_cast<double>(j) + .5) * dv[d];
+    }
+    v_eval[k] = x;
+  }
+
+  return v_eval;
 }
 
 template <size_t V_DIM>

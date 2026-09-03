@@ -300,40 +300,33 @@ std::vector<double> NuFISolver<X_DIM, V_DIM>::eval_f_batch(
 template <size_t X_DIM, size_t V_DIM>
 double NuFISolver<X_DIM, V_DIM>::eval_density_at_x(
     unsigned int n, const array<double, X_DIM> &x_point,
-    const std::vector<array<double, V_DIM>> &v_eval,
+    const array<size_t, V_DIM> &Nv,
     const std::vector<GridStructure<X_DIM>> &grid_struct,
     const std::vector<SolutionSnapshot<X_DIM>> &phi_history,
     bool is_electron) const {
 
-  const size_t n_v = v_eval.size();
-  const size_t chunk_size = Parameters::V_CHUNK_SIZE;
+  size_t n_v = 1;
+  for (size_t d = 0; d < V_DIM; ++d)
+    n_v *= Nv[d];
+
+  const size_t chunk_size =
+      Parameters::CHUNK_V ? Parameters::V_CHUNK_SIZE : n_v;
 
   double rho_local = 0.0;
 
-  if (Parameters::CHUNK_V) {
-    for (size_t chunk_start = 0; chunk_start < n_v; chunk_start += chunk_size) {
-      const size_t chunk_end = std::min(n_v, chunk_start + chunk_size);
-      const size_t local_n = chunk_end - chunk_start;
+  for (size_t chunk_start = 0; chunk_start < n_v; chunk_start += chunk_size) {
+    const size_t chunk_end = std::min(n_v, chunk_start + chunk_size);
+    const size_t local_n = chunk_end - chunk_start;
 
-      std::vector<array<double, X_DIM>> X_chunk(local_n, x_point);
-      std::vector<array<double, V_DIM>> U_chunk(v_eval.begin() + chunk_start,
-                                                v_eval.begin() + chunk_end);
+    std::vector<array<double, V_DIM>> U_chunk =
+        make_v_eval_chunk<V_DIM>(Nv, chunk_start, chunk_end, is_electron);
+    std::vector<array<double, X_DIM>> X_chunk(local_n, x_point);
 
-      std::vector<double> ftilda_chunk =
-          eval_ftilda_batch(n, std::move(X_chunk), std::move(U_chunk),
-                            grid_struct, phi_history, is_electron);
+    std::vector<double> ftilda_chunk =
+        eval_ftilda_batch(n, std::move(X_chunk), std::move(U_chunk),
+                          grid_struct, phi_history, is_electron);
 
-      for (double f : ftilda_chunk)
-        rho_local += f;
-    }
-  } else {
-    std::vector<array<double, X_DIM>> X(v_eval.size(), x_point);
-    std::vector<array<double, V_DIM>> U(v_eval);
-
-    std::vector<double> f_tilda_full = eval_ftilda_batch(
-        n, std::move(X), std::move(U), grid_struct, phi_history, is_electron);
-
-    for (double f : f_tilda_full)
+    for (double f : ftilda_chunk)
       rho_local += f;
   }
 
@@ -349,8 +342,6 @@ std::vector<double> NuFISolver<X_DIM, V_DIM>::eval_species_density(
 
   const size_t x_size = X.size();
 
-  const std::vector<array<double, V_DIM>> v_eval =
-      make_v_eval<V_DIM>(Nv, is_electron);
   const array<double, V_DIM> dv = make_dv<V_DIM>(Nv, is_electron);
 
   double v_cell_volume = 1.0;
@@ -361,8 +352,8 @@ std::vector<double> NuFISolver<X_DIM, V_DIM>::eval_species_density(
 
 #pragma omp parallel for schedule(dynamic)
   for (size_t xi = 0; xi < x_size; ++xi) {
-    const double rho_local = eval_density_at_x(n, X[xi], v_eval, grid_struct,
-                                               phi_history, is_electron);
+    const double rho_local =
+        eval_density_at_x(n, X[xi], Nv, grid_struct, phi_history, is_electron);
     density[xi] = rho_local * v_cell_volume;
   }
 

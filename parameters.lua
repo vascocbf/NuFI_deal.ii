@@ -91,9 +91,9 @@ local V_CHUNK_SIZE_BY_VDIM = {
   [3] = 2 ^ 20
 }
 -- local V_CHUNK_SIZE = V_CHUNK_SIZE_BY_VDIM[V_DIM] -- '0' corresponds to the automatic hardware check
-local V_CHUNK_SIZE = 0
+local V_CHUNK_SIZE = 2 ^ 12
 local V_CHUNK_MAX = 2 ^ 21
-local CHUNK_V = false
+local CHUNK_V = true
 
 Parameters = {
   X_DIM = X_DIM,
