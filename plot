@@ -97,7 +97,7 @@ print sprintf("plot:   f   -> %s", f_file)
 slice_tag = (slice_plots ? sprintf(" [%s]", slice_coords) : "")
 
 set output sprintf("%s/final_rho.png", save_dir)
-set title sprintf("Final Charge Density {/Symbol r}(x), it = %s%s", last_it, slice_tag)
+set title sprintf("Final Charge Density {/Symbol r}(x), t = %.2f%s", (last_it+0)*dt, slice_tag)
 set xlabel "x"
 set ylabel "{/Symbol r}(x)"
 set grid
@@ -106,7 +106,7 @@ unset key
 plot rho_file using 1:(column(rho_col)) with lines lw 2 lc rgb "#1f77b4"
 
 set output sprintf("%s/final_E.png", save_dir)
-set title sprintf("Final Electric Field E_%d(x), it = %s%s", E_component, last_it, slice_tag)
+set title sprintf("Final Electric Field E_%d(x), it = %.2f%s", E_component, (last_it+0)*dt, slice_tag)
 set xlabel "x"
 set ylabel sprintf("E_%d", E_component)
 set grid
@@ -137,7 +137,7 @@ unset key
 plot Esqr_file using 1:2 with lines lw 2 lc rgb "#9467bd"
 
 set output sprintf("%s/final_f.png", save_dir)
-set title sprintf("Phase Space Density f(x,v), it = %s%s", last_it, slice_tag)
+set title sprintf("Phase Space Density f(x,v), it = %.2f%s", (last_it+0)*dt, slice_tag)
 set xlabel "x"
 set ylabel "v"
 unset grid
