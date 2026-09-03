@@ -12,7 +12,7 @@ local V_DOMAIN_RIGHT = { 10.0, 10.0, 10.0 }
 local NV_BY_VDIM     = {
   [1] = { 512, 512, 512 },
   [2] = { 64, 64, 64 },
-  [3] = { 8, 8, 8 },
+  [3] = { 16, 16, 16 },
 }
 local NV             = NV_BY_VDIM[V_DIM]
 
@@ -32,7 +32,7 @@ local DV                 =
 -- 1 -> landau-damping
 -- 2 -> maxwellian
 -- 3 -> bump-on-tail
-local f0_TYPE            = 0
+local f0_TYPE            = 1
 
 -- Ion options
 local IONS_ENABLED       = false
@@ -90,10 +90,10 @@ local V_CHUNK_SIZE_BY_VDIM = {
   [2] = 2 ^ 20,
   [3] = 2 ^ 20
 }
-local V_CHUNK_SIZE = V_CHUNK_SIZE_BY_VDIM[V_DIM] -- '0' corresponds to the automatic hardware check
--- local V_CHUNK_SIZE =0
-local V_CHUNK_MAX = 2 ^ 17
-local CHUNK_V = true
+-- local V_CHUNK_SIZE = V_CHUNK_SIZE_BY_VDIM[V_DIM] -- '0' corresponds to the automatic hardware check
+local V_CHUNK_SIZE = 0
+local V_CHUNK_MAX = 2 ^ 21
+local CHUNK_V = false
 
 Parameters = {
   X_DIM = X_DIM,

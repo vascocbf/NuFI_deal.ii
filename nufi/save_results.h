@@ -38,6 +38,7 @@ template <size_t X_DIM, size_t V_DIM> struct DiagnosticsSlice {
   std::vector<double> f;
   std::vector<double> rho;
   std::vector<std::array<double, X_DIM>> E;
+  std::vector<double> E_sqr;
 };
 
 namespace detail {
@@ -163,6 +164,14 @@ DiagnosticsSlice<X_DIM, V_DIM> compute_diagnostics_slice(
     for (size_t d = 0; d < X_DIM; ++d)
       E[d] = -E[d];
 
+  slice.E_sqr.resize(Nx_free);
+  for (size_t i = 0; i < Nx_free; ++i) {
+    double mag_sqr = 0.0;
+    for (size_t d = 0; d < X_DIM; ++d)
+      mag_sqr += slice.E[i][d] * slice.E[i][d];
+    slice.E_sqr[i] = mag_sqr;
+  }
+
   return slice;
 }
 
@@ -191,6 +200,7 @@ void save_f(const DiagnosticsSnapshot<X_DIM, V_DIM> &snap,
         file << snap.v_eval[j][d] << " ";
       file << snap.f[j * n_x + i] << "\n";
     }
+    file << "\n";
   }
 }
 
@@ -224,6 +234,7 @@ void save_f_slice(const DiagnosticsSlice<X_DIM, V_DIM> &slice,
            << slice.v_eval[j][slice.free_v_dim] << " " << slice.f[j * n_x + i]
            << "\n";
     }
+    file << "\n";
   }
 }
 
