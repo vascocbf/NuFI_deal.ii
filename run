@@ -11,6 +11,7 @@ set -euo pipefail
 BINARY="./build/nufi_poisson"
 FLAMEGRAPH_DIR="${HOME}/.local/bin/FlameGraph"
 OUT_DIR="./results/perf"
+FLAMEGRAPH_FILE_DIR="./results"
 PERF_FREQ=99
 TITLE="${FLAMEGRAPH_TITLE:-NuFI-deal.II FlameGraph}"
 
@@ -49,7 +50,7 @@ mkdir -p "${OUT_DIR}"
 PERF_DATA="${OUT_DIR}/perf.data"
 PERF_SCRIPT_OUT="${OUT_DIR}/out.perf"
 FOLDED_OUT="${OUT_DIR}/out.folded"
-FLAMEGRAPH_OUT="${OUT_DIR}/flamegraph.svg"
+FLAMEGRAPH_OUT="${FLAMEGRAPH_FILE_DIR}/flamegraph.svg"
 
 # ---- run ----------------------------------------------------------------
 echo "==> Recording with perf (-F ${PERF_FREQ}) ..."
@@ -85,6 +86,16 @@ echo "    perf.data   : ${PERF_DATA}"
 echo "    out.perf    : ${PERF_SCRIPT_OUT}"
 echo "    out.folded  : ${FOLDED_OUT}"
 echo "    flamegraph  : ${FLAMEGRAPH_OUT}"
+
+read -r -p "Delete perf folder (${OUT_DIR})? [y/N] " DELETE_CHOICE
+case "${DELETE_CHOICE}" in
+  [yY]|[yY][eE][sS])
+    rm -rf "${OUT_DIR}"
+    echo "==> Deleted ${OUT_DIR}"
+    ;;
+  *)
+    ;;
+esac
 
 read -r -p "Open flamegraph in Firefox? [y/N] " OPEN_CHOICE
 case "${OPEN_CHOICE}" in
