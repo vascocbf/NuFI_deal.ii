@@ -48,6 +48,8 @@ inline unsigned int CONVERGENCE_ITERATIONS;
 inline double CONVERGENCE_LIMIT;
 inline unsigned int MAX_DOFS;
 
+inline size_t BOUNDARY_TYPE;
+
 // Adaptive refinement options
 inline unsigned int REFINE_FREQUENCY;
 inline double REFINEMENT_TOP_FRACTION;
@@ -182,6 +184,8 @@ inline void load_lua_config(const std::string &luaFilePath) {
       static_cast<unsigned int>(config.get<int>("CONVERGENCE_ITERATIONS"));
   CONVERGENCE_LIMIT = config.get<double>("CONVERGENCE_LIMIT");
   MAX_DOFS = static_cast<unsigned int>(config.get<int>("MAX_DOFS"));
+
+  BOUNDARY_TYPE = static_cast<size_t>(config.get<int>("BOUNDARY_TYPE"));
 
   REFINE_FREQUENCY =
       static_cast<unsigned int>(config.get<int>("REFINE_FREQUENCY"));

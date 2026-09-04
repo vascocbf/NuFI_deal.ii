@@ -55,6 +55,12 @@ local CONVERGENCE_ITERATIONS = 5000
 local CONVERGENCE_LIMIT = 1e-7
 local MAX_DOFS = 2000
 
+-- BOUNDARY_TYPE:
+-- 0 -> fully periodic
+-- 1 -> fully open TODO
+-- 2 -> fully reflective TODO
+local BOUNDARY_TYPE = 0
+
 
 -- Adaptive refinement options
 local REFINE_FREQUENCY = 50
@@ -120,6 +126,8 @@ Parameters = {
   CONVERGENCE_ITERATIONS = CONVERGENCE_ITERATIONS,
   CONVERGENCE_LIMIT = CONVERGENCE_LIMIT,
   MAX_DOFS = MAX_DOFS,
+
+  BOUNDARY_TYPE = BOUNDARY_TYPE,
 
   -- Adaptive refinement options
   REFINE_FREQUENCY = REFINE_FREQUENCY,

@@ -274,9 +274,13 @@ void PoissonProblem<X_DIM>::setup_constraints(
 
   DoFTools::make_hanging_node_constraints(dof_handler, constraints);
 
-  for (unsigned int d = 0; d < X_DIM; ++d)
-    DoFTools::make_periodicity_constraints(dof_handler, 2 * d, 2 * d + 1, d,
-                                           constraints);
+  switch (Parameters::BOUNDARY_TYPE) {
+  case 0: {
+    for (unsigned int d = 0; d < X_DIM; ++d)
+      DoFTools::make_periodicity_constraints(dof_handler, 2 * d, 2 * d + 1, d,
+                                             constraints);
+  }
+  }
 
   const auto support_points =
       DoFTools::map_dofs_to_support_points(mapping, dof_handler);
@@ -290,13 +294,14 @@ void PoissonProblem<X_DIM>::setup_constraints(
     gauge_dof = dof;
 
     if (PRINT_GAUGE_DOF_POSITION)
-      std::cout << " gauge_dof = " << gauge_dof << " gauge_point = " << point[0]
-                << std::endl;
+      std::cout << "[PoissonProblem::setup_constraints] gauge_dof = "
+                << gauge_dof << " gauge_point = " << point[0] << std::endl;
     break;
   }
 
   Assert(gauge_dof != numbers::invalid_dof_index,
-         ExcMessage("No gauge DoF found in protected gauge region."));
+         ExcMessage("[PoissonProblem::setup_constraints] No gauge DoF found in "
+                    "protected gauge region."));
 
   constraints.add_line(gauge_dof);
   constraints.set_inhomogeneity(gauge_dof, 0.0);
