@@ -31,6 +31,8 @@ E_component = 0
 
 plot_E_squared_slice = 0
 
+log_E_squared_timeseries = 1 
+
 # x-axis range for rho/E/f plots. Leave both as "" to autoscale.
 x_min = "0"
 x_max = "12.566"
@@ -110,7 +112,6 @@ set title sprintf("Final Electric Field E_%d(x), it = %.2f%s", E_component, (las
 set xlabel "x"
 set ylabel sprintf("E_%d", E_component)
 set grid
-set xrange [xr_lo:xr_hi]
 
 if (slice_plots && plot_E_squared_slice) {
   set y2tics
@@ -126,15 +127,54 @@ if (slice_plots && plot_E_squared_slice) {
   plot E_file using 1:(column(E_col)) with lines lw 2 lc rgb "#d62728"
 }
 
+# --- computation time plots ------------------------------------------------
+sim_time_file = sprintf("%s/simulation_time.dat", results_dir)
+
+if (system(sprintf("test -s %s && echo 1 || echo 0", sim_time_file)) eq "0") {
+  print sprintf("plot: WARNING - %s not found or empty, skipping timing plots.", sim_time_file)
+} else {
+  last_iter = system(sprintf("tail -n 1 %s | awk '{print $1}'", sim_time_file))
+  set xrange [0:(last_iter eq "" ? "*" : last_iter+0)]
+
+  set output sprintf("%s/step_time.png", save_dir)
+  set title "Per-iteration Computation Time"
+  set xlabel "iteration"
+  set ylabel "time [s]"
+  set grid
+  set key top left
+  plot sim_time_file using 1:2 with lines lw 2 lc rgb "#1f77b4" title "step time", \
+       sim_time_file using 1:4 with lines lw 2 lc rgb "#ff7f0e" title "compute time", \
+       #sim_time_file using 1:6 with lines lw 2 lc rgb "#2ca02c" title "plot\\_time"
+  unset key
+
+  # Plot 2: cumulative time (total_time, cumulative compute_time, cumulative plot_time)
+  set output sprintf("%s/cumulative_time.png", save_dir)
+  set title "Cumulative Computation Time"
+  set xlabel "iteration"
+  set ylabel "cumulative time [s]"
+  set grid
+  set key top left
+  plot sim_time_file using 1:3 with lines lw 2 lc rgb "#1f77b4" title "total time", \
+       sim_time_file using 1:4 smooth cumulative with lines lw 2 lc rgb "#ff7f0e" title "compute time (cumulative)", \
+       #sim_time_file using 1:6 smooth cumulative with lines lw 2 lc rgb "#2ca02c" title "plot\\_time (cum)"
+  unset key
+  unset xrange
+}
+
 set output sprintf("%s/E_squared_timeseries.png", save_dir)
 set title "1/2 {/Symbol \362} E^2 dx vs. time"
 set xlabel "time [s]"
 set ylabel "1/2 {/Symbol \362} E^2 dx"
 set grid
-set xrange [0:(last_it+0)*dt]
-
+last_t = system(sprintf("tail -n 1 %s | awk '{print $1}'", Esqr_file))
+set xrange [0:(last_t eq "" ? "*" : last_t+0)]
 unset key
+if (log_E_squared_timeseries) {
+  set logscale y
+}
 plot Esqr_file using 1:2 with lines lw 2 lc rgb "#9467bd"
+unset logscale y
+unset xrange
 
 set output sprintf("%s/final_f.png", save_dir)
 set title sprintf("Phase Space Density f(x,v), it = %.2f%s", (last_it+0)*dt, slice_tag)
