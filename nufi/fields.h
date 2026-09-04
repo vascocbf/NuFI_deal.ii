@@ -218,7 +218,7 @@ inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
       v2 += dv * dv;
     }
 
-    return factor / std::pow(v_th, static_cast<double>(V_DIM)) *
+    return std::pow(factor / v_th, static_cast<int>(V_DIM)) *
            std::exp(-0.5 * v2 / (v_th * v_th));
   };
 
@@ -231,16 +231,17 @@ inline double f0(const array<double, X_DIM> &x, const array<double, V_DIM> &v,
   {
     computed_max = maxwell(v);
 
-    // WARNING: For two-stream instability on higher dimensions
-    //          in which direction is the perturbation? just x_1 or more
-    //          same question on f0_ion
-    prefactor = (1.0 + eps * std::cos(k * x[0]));
+    double cos_factor = 0;
+    for (size_t d = 0; d < X_DIM; ++d)
+      cos_factor += std::cos(k * x[d]);
+
+    prefactor = (1.0 + eps * cos_factor);
 
     double v2 = 0;
     for (size_t i = 0; i < V_DIM; ++i)
       v2 += v[i] * v[i];
 
-    result = prefactor * v2 * computed_max;
+    result = prefactor * (v2 / static_cast<double>(V_DIM)) * computed_max;
     break;
   }
   case 1: // Landau-damping
