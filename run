@@ -4,15 +4,16 @@
 # result into a flamegraph. Run this from the project root (".").
 #
 # All profiling artifacts are written to ./results/perf/
+# (override with PERF_OUT_DIR=/path/with/space ./run)
 
 set -euo pipefail
 
 # ---- config -----------------------------------------------------------
 BINARY="./build/nufi_poisson"
 FLAMEGRAPH_DIR="${HOME}/.local/bin/FlameGraph"
-OUT_DIR="./results/perf"
+OUT_DIR="${PERF_OUT_DIR:-./results/perf}"
 FLAMEGRAPH_FILE_DIR="./results"
-PERF_FREQ=99
+PERF_FREQ="${PERF_FREQ:-49}"
 TITLE="${FLAMEGRAPH_TITLE:-NuFI-deal.II FlameGraph}"
 
 # ---- checks -------------------------------------------------------------
@@ -45,12 +46,14 @@ if [[ -r "${PARANOID_PATH}" ]]; then
   fi
 fi
 
-mkdir -p "${OUT_DIR}"
+mkdir -p "${OUT_DIR}" "${FLAMEGRAPH_FILE_DIR}"
 
 PERF_DATA="${OUT_DIR}/perf.data"
-PERF_SCRIPT_OUT="${OUT_DIR}/out.perf"
 FOLDED_OUT="${OUT_DIR}/out.folded"
 FLAMEGRAPH_OUT="${FLAMEGRAPH_FILE_DIR}/flamegraph.svg"
+
+# Remove a leftover multi-GB dump from older runs of this script
+rm -f "${OUT_DIR}/out.perf"
 
 # ---- run ----------------------------------------------------------------
 echo "==> Recording with perf (-F ${PERF_FREQ}) ..."
@@ -72,18 +75,15 @@ if [[ ! -s "${PERF_DATA}" ]]; then
   exit 1
 fi
 
-echo "==> Generating perf script output ..."
-perf script -i "${PERF_DATA}" > "${PERF_SCRIPT_OUT}"
-
-echo "==> Collapsing stacks ..."
-"${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" "${PERF_SCRIPT_OUT}" > "${FOLDED_OUT}"
+echo "==> Generating perf script output and collapsing stacks (streamed, no big intermediate file) ..."
+perf script --no-inline -i "${PERF_DATA}" \
+  | "${FLAMEGRAPH_DIR}/stackcollapse-perf.pl" > "${FOLDED_OUT}"
 
 echo "==> Building flamegraph ..."
 "${FLAMEGRAPH_DIR}/flamegraph.pl" --title="${TITLE}" "${FOLDED_OUT}" > "${FLAMEGRAPH_OUT}"
 
 echo "==> Done."
 echo "    perf.data   : ${PERF_DATA}"
-echo "    out.perf    : ${PERF_SCRIPT_OUT}"
 echo "    out.folded  : ${FOLDED_OUT}"
 echo "    flamegraph  : ${FLAMEGRAPH_OUT}"
 
@@ -100,7 +100,7 @@ case "${VIEW_CHOICE}" in
     ;;
   *)
     if command -v feh >/dev/null 2>&1; then
-      feh ${OUT_DIR%/perf}/*.png >/dev/null 2>&1 &
+      feh "${FLAMEGRAPH_FILE_DIR}"/*.png >/dev/null 2>&1 &
       disown
     else
       echo "warning: 'feh' not found on PATH; install with: sudo apt install feh" >&2
@@ -117,10 +117,6 @@ esac
 #     ;;
 #   *)
 #     if [[ ! -s "${INT_E_SQR_FILE}" ]]; then
-#       echo "warning: ${INT_E_SQR_FILE} not found or empty, skipping plot." >&2
-#     elif command -v gnuplot >/dev/null 2>&1; then
-#
-#           if [[ ! -s "${INT_E_SQR_FILE}" ]]; then
 #       echo "warning: ${INT_E_SQR_FILE} not found or empty, skipping plot." >&2
 #     elif command -v gnuplot >/dev/null 2>&1; then
 #       read -r -p "Use log scale for y axis? [y/N] " LOGSCALE_CHOICE
@@ -153,9 +149,6 @@ esac
 #         ${LOGSCALE_CMD}
 #         plot '${INT_E_SQR_FILE}' using 1:2 with lines title 'E^2(t)'
 #       "
-#     else
-#       echo "warning: 'gnuplot' not found on PATH; open it manually: ${INT_E_SQR_FILE}" >&2
-#     fi
 #     else
 #       echo "warning: 'gnuplot' not found on PATH; open it manually: ${INT_E_SQR_FILE}" >&2
 #     fi
